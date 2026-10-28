@@ -31,6 +31,8 @@ def list_payments(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
+    if current_user.role == models.UserRole.CUSTOMER:
+        customer_id = current_user.customer_id
     query = db.query(models.Payment)
     if customer_id:
         query = query.filter(models.Payment.customer_id == customer_id)
@@ -52,7 +54,7 @@ def list_payments(
 def create_payment(
     payload: schemas.PaymentCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user),
+    current_user: models.User = Depends(auth.require_staff),
 ):
     customer = db.query(models.Customer).filter(models.Customer.id == payload.customer_id).first()
     if not customer:
@@ -79,6 +81,7 @@ def get_payment(
     payment = db.query(models.Payment).filter(models.Payment.id == payment_id).first()
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
+    auth.assert_can_view_customer(current_user, payment.customer_id)
     out = schemas.PaymentOut.model_validate(payment)
     out.customer_name = payment.customer.name if payment.customer else None
     return out
@@ -88,7 +91,7 @@ def get_payment(
 def delete_payment(
     payment_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user),
+    current_user: models.User = Depends(auth.require_staff),
 ):
     payment = db.query(models.Payment).filter(models.Payment.id == payment_id).first()
     if not payment:
@@ -104,6 +107,7 @@ def get_customer_payments(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
+    auth.assert_can_view_customer(current_user, customer_id)
     payments = (
         db.query(models.Payment)
         .filter(models.Payment.customer_id == customer_id)

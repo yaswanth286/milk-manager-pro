@@ -16,16 +16,15 @@ import { useState } from 'react';
 import { NavLink, useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  LayoutDashboard, Users, Sun as SunIcon, Wallet, BarChart3, Receipt, Settings as SettingsIcon,
-  Menu, X, Search, Bell, LogOut, ChevronsLeft, ChevronsRight, Droplets,
+  Users, Sun as SunIcon, Wallet, BarChart3, Receipt, Settings as SettingsIcon,
+  Menu, X, Search, Bell, LogOut, ChevronsLeft, ChevronsRight, Droplets, Milk,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { usePageHeaderContext } from '../../context/PageHeaderContext';
 import PageTransition from '../ui/PageTransition';
 import ThemeToggle from '../ui/ThemeToggle';
 
-const NAV_ITEMS = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+const OWNER_NAV = [
   { to: '/customers', label: 'Customers', icon: Users },
   { to: '/delivery/morning', label: 'Delivery', icon: SunIcon, matchPrefix: '/delivery' },
   { to: '/payments', label: 'Payments', icon: Wallet },
@@ -34,16 +33,25 @@ const NAV_ITEMS = [
   { to: '/settings', label: 'Settings', icon: SettingsIcon },
 ];
 
-const MOBILE_NAV_ITEMS = [
-  NAV_ITEMS[0],
-  NAV_ITEMS[1],
-  NAV_ITEMS[2],
-  NAV_ITEMS[3],
+const CUSTOMER_NAV = [
+  { to: '/my', label: 'My milk', icon: Milk },
+  { to: '/payments', label: 'Payments', icon: Wallet },
+  { to: '/bills', label: 'Bills', icon: Receipt },
+  { to: '/settings', label: 'Settings', icon: SettingsIcon },
+];
+
+const OWNER_MOBILE_NAV = [
+  OWNER_NAV[0],
+  OWNER_NAV[1],
+  OWNER_NAV[2],
   { to: '/more', label: 'More', icon: Menu },
 ];
 
 export default function Layout() {
   const { user, logout } = useAuth();
+  const isCustomer = user?.role === 'customer';
+  const NAV_ITEMS = isCustomer ? CUSTOMER_NAV : OWNER_NAV;
+  const MOBILE_NAV_ITEMS = isCustomer ? CUSTOMER_NAV : OWNER_MOBILE_NAV;
   const navigate = useNavigate();
   const location = useLocation();
   const { header } = usePageHeaderContext();
@@ -112,16 +120,18 @@ export default function Layout() {
             {subtitle && <p>{subtitle}</p>}
           </div>
           <div className="topbar-actions">
-            <form onSubmit={handleSearchSubmit}>
-              <div className="search-bar" style={{ marginBottom: 0, width: 220 }}>
-                <Search size={16} color="var(--color-text-faint)" />
-                <input
-                  placeholder="Search customers..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
-            </form>
+            {!isCustomer && (
+              <form onSubmit={handleSearchSubmit}>
+                <div className="search-bar" style={{ marginBottom: 0, width: 220 }}>
+                  <Search size={16} color="var(--color-text-faint)" />
+                  <input
+                    placeholder="Search customers..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </div>
+              </form>
+            )}
             <button className="topbar-icon-btn" title="Notifications" aria-label="Notifications">
               <Bell size={17} />
               <span className="dot" />

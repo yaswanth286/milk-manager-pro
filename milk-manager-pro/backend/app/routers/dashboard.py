@@ -32,7 +32,7 @@ def _summarize(rows) -> schemas.ShiftSummary:
 def get_dashboard(
     for_date: date_type = Query(default_factory=date_type.today, alias="date"),
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user),
+    current_user: models.User = Depends(auth.require_staff),
 ):
     morning_rows = _build_shift_view(db, models.Shift.MORNING, for_date)
     evening_rows = _build_shift_view(db, models.Shift.EVENING, for_date)

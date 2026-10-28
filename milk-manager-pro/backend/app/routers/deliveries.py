@@ -82,7 +82,7 @@ def _build_shift_view(db: Session, shift: models.Shift, target_date: date_type):
 def get_morning_deliveries(
     for_date: date_type = Query(default_factory=date_type.today, alias="date"),
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user),
+    current_user: models.User = Depends(auth.require_staff),
 ):
     return {"date": for_date, "shift": "morning", "rows": _build_shift_view(db, models.Shift.MORNING, for_date)}
 
@@ -91,7 +91,7 @@ def get_morning_deliveries(
 def get_evening_deliveries(
     for_date: date_type = Query(default_factory=date_type.today, alias="date"),
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user),
+    current_user: models.User = Depends(auth.require_staff),
 ):
     return {"date": for_date, "shift": "evening", "rows": _build_shift_view(db, models.Shift.EVENING, for_date)}
 
@@ -100,7 +100,7 @@ def get_evening_deliveries(
 def mark_delivery(
     payload: schemas.DeliveryMarkRequest,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user),
+    current_user: models.User = Depends(auth.require_staff),
 ):
     """
     Create-or-update a single delivery record. This is what fires every
@@ -169,7 +169,7 @@ def list_deliveries(
     shift: Optional[models.Shift] = None,
     status_filter: Optional[models.DeliveryStatus] = Query(None, alias="status"),
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user),
+    current_user: models.User = Depends(auth.require_staff),
 ):
     query = db.query(models.Delivery)
     if customer_id:
@@ -196,7 +196,7 @@ def list_deliveries(
 def create_delivery(
     payload: schemas.DeliveryCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user),
+    current_user: models.User = Depends(auth.require_staff),
 ):
     customer = db.query(models.Customer).filter(models.Customer.id == payload.customer_id).first()
     if not customer:
@@ -229,7 +229,7 @@ def update_delivery(
     delivery_id: int,
     payload: schemas.DeliveryUpdate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user),
+    current_user: models.User = Depends(auth.require_staff),
 ):
     delivery = db.query(models.Delivery).filter(models.Delivery.id == delivery_id).first()
     if not delivery:

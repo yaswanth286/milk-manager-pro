@@ -4,16 +4,10 @@ import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
 import { PageHeaderProvider } from './context/PageHeaderContext';
-import ProtectedRoute from './routes/ProtectedRoute';
+import ProtectedRoute, { StaffOnly, CustomerOnly, HomeRedirect } from './routes/ProtectedRoute';
 import Layout from './components/layout/Layout';
 import Login from './pages/Login/Login';
 
-// Route-level code splitting: each page's JS (and the heavier libraries
-// only it needs, like Recharts on the Dashboard) is fetched on demand
-// instead of all being bundled into one huge file the browser has to
-// download before showing anything - keeps the first paint fast even as
-// the app grows.
-const Dashboard = lazy(() => import('./pages/Dashboard/Dashboard'));
 const Customers = lazy(() => import('./pages/Customers/Customers'));
 const CustomerDetails = lazy(() => import('./pages/CustomerDetails/CustomerDetails'));
 const AddCustomer = lazy(() => import('./pages/AddCustomer/AddCustomer'));
@@ -33,11 +27,6 @@ function PageFallback() {
   );
 }
 
-// The Layout (sidebar + topbar) is rendered ONCE here and stays mounted
-// across navigations - only the <Outlet /> content inside it swaps, which
-// is what makes page transitions feel smooth instead of the whole app
-// shell flickering on every click. ProtectedRoute wraps it so the entire
-// section requires login.
 function ProtectedLayout() {
   return (
     <ProtectedRoute>
@@ -58,28 +47,29 @@ export default function App() {
                   <Route path="/login" element={<Login />} />
 
                   <Route element={<ProtectedLayout />}>
-                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/my" element={<CustomerOnly><CustomerDetails /></CustomerOnly>} />
 
-                    <Route path="/customers" element={<Customers />} />
-                    <Route path="/customers/new" element={<AddCustomer />} />
-                    <Route path="/customers/:id" element={<CustomerDetails />} />
-                    <Route path="/customers/:id/edit" element={<AddCustomer />} />
+                    <Route path="/customers" element={<StaffOnly><Customers /></StaffOnly>} />
+                    <Route path="/customers/new" element={<StaffOnly><AddCustomer /></StaffOnly>} />
+                    <Route path="/customers/:id" element={<StaffOnly><CustomerDetails /></StaffOnly>} />
+                    <Route path="/customers/:id/edit" element={<StaffOnly><AddCustomer /></StaffOnly>} />
 
-                    <Route path="/delivery/morning" element={<MorningDelivery />} />
-                    <Route path="/delivery/evening" element={<EveningDelivery />} />
+                    <Route path="/delivery/morning" element={<StaffOnly><MorningDelivery /></StaffOnly>} />
+                    <Route path="/delivery/evening" element={<StaffOnly><EveningDelivery /></StaffOnly>} />
 
                     <Route path="/payments" element={<Payments />} />
-                    <Route path="/payments/new" element={<Payments />} />
+                    <Route path="/payments/new" element={<StaffOnly><Payments /></StaffOnly>} />
 
-                    <Route path="/reports" element={<Reports />} />
+                    <Route path="/reports" element={<StaffOnly><Reports /></StaffOnly>} />
                     <Route path="/bills" element={<Bills />} />
 
                     <Route path="/settings" element={<Settings />} />
-                    <Route path="/more" element={<More />} />
+                    <Route path="/more" element={<StaffOnly><More /></StaffOnly>} />
                   </Route>
 
-                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                  <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                  <Route path="/" element={<HomeRedirect />} />
+                  <Route path="/dashboard" element={<HomeRedirect />} />
+                  <Route path="*" element={<HomeRedirect />} />
                 </Routes>
               </Suspense>
             </PageHeaderProvider>

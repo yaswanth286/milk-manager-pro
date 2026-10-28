@@ -2,13 +2,17 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Pencil, CreditCard, Receipt, ChevronLeft, ChevronRight } from 'lucide-react';
 import { usePageHeader } from '../../context/PageHeaderContext';
+import { useAuth } from '../../context/AuthContext';
 import { getCustomer, getCustomerConsumption } from '../../services/customerService';
 import { formatCurrency, formatLitres, formatDateShort } from '../../utils/format';
 import { MONTH_NAMES, STATUS_LABELS } from '../../constants';
 import { SkeletonText, SkeletonCard } from '../../components/ui/Skeleton';
 
 export default function CustomerDetails() {
-  const { id } = useParams();
+  const { id: paramId } = useParams();
+  const { user } = useAuth();
+  const isCustomerView = user?.role === 'customer';
+  const id = isCustomerView ? user.customer_id : paramId;
   const navigate = useNavigate();
 
   const now = new Date();
@@ -19,13 +23,20 @@ export default function CustomerDetails() {
   const [consumption, setConsumption] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  usePageHeader(customer?.name || 'Customer Details', customer ? `Customer since ${customer.start_date}` : '');
+  usePageHeader(
+    isCustomerView ? 'My milk' : (customer?.name || 'Customer Details'),
+    isCustomerView
+      ? (customer ? `Customer since ${customer.start_date}` : 'Your deliveries, balance, and history')
+      : (customer ? `Customer since ${customer.start_date}` : '')
+  );
 
   useEffect(() => {
+    if (!id) return;
     getCustomer(id).then(setCustomer);
   }, [id]);
 
   useEffect(() => {
+    if (!id) return;
     setLoading(true);
     getCustomerConsumption(id, year, month)
       .then(setConsumption)
@@ -57,9 +68,11 @@ export default function CustomerDetails() {
             <div style={{ fontWeight: 800, fontSize: '1.2rem', letterSpacing: '-0.01em' }}>{customer.name}</div>
             <div className="text-sm text-muted">{customer.mobile} · {customer.milk_type === 'buffalo' ? '🐃 Buffalo' : '🐄 Cow'}</div>
           </div>
-          <button className="btn btn-outline btn-sm" onClick={() => navigate(`/customers/${id}/edit`)}>
-            <Pencil size={14} /> Edit
-          </button>
+          {!isCustomerView && (
+            <button className="btn btn-outline btn-sm" onClick={() => navigate(`/customers/${id}/edit`)}>
+              <Pencil size={14} /> Edit
+            </button>
+          )}
         </div>
 
         <div className="mt-16" style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
@@ -79,9 +92,11 @@ export default function CustomerDetails() {
               {formatCurrency(Math.abs(customer.current_balance || 0))} {customer.current_balance > 0 ? 'due' : 'settled'}
             </div>
           </div>
-          <Link to={`/payments/new?customer_id=${id}`} className="btn btn-accent btn-sm">
-            <CreditCard size={14} /> Record Payment
-          </Link>
+          {!isCustomerView && (
+            <Link to={`/payments/new?customer_id=${id}`} className="btn btn-accent btn-sm">
+              <CreditCard size={14} /> Record Payment
+            </Link>
+          )}
         </div>
       </div>
 
@@ -107,8 +122,8 @@ export default function CustomerDetails() {
           </div>
 
           <div className="card mb-12">
-            <Link to={`/bills?customer_id=${id}&year=${year}&month=${month}`} className="btn btn-primary btn-block">
-              <Receipt size={16} /> View / Generate Bill for {MONTH_NAMES[month - 1]}
+            <Link to={isCustomerView ? `/bills?year=${year}&month=${month}` : `/bills?customer_id=${id}&year=${year}&month=${month}`} className="btn btn-primary btn-block">
+              <Receipt size={16} /> {isCustomerView ? `View bill for ${MONTH_NAMES[month - 1]}` : `View / Generate Bill for ${MONTH_NAMES[month - 1]}`}
             </Link>
           </div>
 

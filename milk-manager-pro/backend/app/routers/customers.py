@@ -59,7 +59,7 @@ def list_customers(
     search: Optional[str] = Query(None, description="Search by name or mobile number"),
     active_only: bool = Query(False),
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user),
+    current_user: models.User = Depends(auth.require_staff),
 ):
     query = db.query(models.Customer)
     if search:
@@ -82,14 +82,29 @@ def list_customers(
 def create_customer(
     payload: schemas.CustomerCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user),
+    current_user: models.User = Depends(auth.require_staff),
 ):
     customer = models.Customer(**payload.model_dump())
     if customer.start_date is None:
         customer.start_date = date.today()
     db.add(customer)
+    db.flush()
+    auth.upsert_customer_login(db, customer)
     db.commit()
     db.refresh(customer)
+    return _to_customer_out(db, customer)
+
+
+@router.get("/me", response_model=schemas.CustomerOut)
+def get_my_customer(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    if current_user.role != models.UserRole.CUSTOMER or not current_user.customer_id:
+        raise HTTPException(status_code=403, detail="Not a customer account")
+    customer = db.query(models.Customer).filter(models.Customer.id == current_user.customer_id).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
     return _to_customer_out(db, customer)
 
 
@@ -99,6 +114,7 @@ def get_customer(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
+    auth.assert_can_view_customer(current_user, customer_id)
     customer = db.query(models.Customer).filter(models.Customer.id == customer_id).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
@@ -110,7 +126,7 @@ def update_customer(
     customer_id: int,
     payload: schemas.CustomerUpdate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user),
+    current_user: models.User = Depends(auth.require_staff),
 ):
     customer = db.query(models.Customer).filter(models.Customer.id == customer_id).first()
     if not customer:
@@ -123,6 +139,7 @@ def update_customer(
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(customer, field, value)
 
+    auth.upsert_customer_login(db, customer)
     db.commit()
     db.refresh(customer)
     return _to_customer_out(db, customer)
@@ -132,7 +149,7 @@ def update_customer(
 def delete_customer(
     customer_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user),
+    current_user: models.User = Depends(auth.require_staff),
 ):
     customer = db.query(models.Customer).filter(models.Customer.id == customer_id).first()
     if not customer:
@@ -154,6 +171,7 @@ def get_customer_consumption(
     Returns the day-by-day Morning/Evening/Status/Extra table used on the
     Customer Details page, for a given month, plus rolled-up totals.
     """
+    auth.assert_can_view_customer(current_user, customer_id)
     customer = db.query(models.Customer).filter(models.Customer.id == customer_id).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")

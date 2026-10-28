@@ -148,7 +148,7 @@ def get_all_bills(
     month: int,
     only_with_activity: bool = True,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user),
+    current_user: models.User = Depends(auth.require_staff),
 ):
     """
     Calculates the bill for EVERY active customer for the given month, in
@@ -188,6 +188,7 @@ def get_bill(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
+    auth.assert_can_view_customer(current_user, customer_id)
     customer = db.query(models.Customer).filter(models.Customer.id == customer_id).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
@@ -202,7 +203,7 @@ def generate_bill(
     year: int,
     month: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user),
+    current_user: models.User = Depends(auth.require_staff),
 ):
     """
     Calculates the bill (same logic as GET above) and SAVES it as a
@@ -248,7 +249,7 @@ def generate_all_bills(
     year: int,
     month: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user),
+    current_user: models.User = Depends(auth.require_staff),
 ):
     """Same as /bills/generate, but for every active customer at once - use at month-end to freeze the whole month's bills in one tap."""
     if not (1 <= month <= 12):

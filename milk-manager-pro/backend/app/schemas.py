@@ -43,6 +43,7 @@ class UserOut(BaseModel):
     username: str
     full_name: Optional[str] = None
     role: str
+    customer_id: Optional[int] = None
 
 
 # ---------------------------------------------------------------------------

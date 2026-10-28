@@ -69,6 +69,7 @@ class PaymentMethod(str, enum.Enum):
 class UserRole(str, enum.Enum):
     OWNER = "owner"
     STAFF = "staff"
+    CUSTOMER = "customer"
 
 
 # ---------------------------------------------------------------------------
@@ -84,7 +85,11 @@ class User(Base):
     full_name = Column(String(100), nullable=True)
     role = Column(Enum(UserRole), default=UserRole.OWNER, nullable=False)
     is_active = Column(Boolean, default=True)
+    # Set only for customer logins — they can see this one customer row.
+    customer_id = Column(Integer, ForeignKey("customers.id", ondelete="CASCADE"), unique=True, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    customer = relationship("Customer", back_populates="login_user")
 
 
 # ---------------------------------------------------------------------------
@@ -126,6 +131,7 @@ class Customer(Base):
     deliveries = relationship("Delivery", back_populates="customer", cascade="all, delete-orphan")
     payments = relationship("Payment", back_populates="customer", cascade="all, delete-orphan")
     bills = relationship("MonthlyBill", back_populates="customer", cascade="all, delete-orphan")
+    login_user = relationship("User", back_populates="customer", uselist=False)
 
 
 # ---------------------------------------------------------------------------

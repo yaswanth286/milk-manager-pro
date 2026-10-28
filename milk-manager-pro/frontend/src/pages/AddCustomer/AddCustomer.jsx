@@ -59,10 +59,10 @@ export default function AddCustomer() {
     e.preventDefault();
     setError('');
 
-    if (!form.name.trim() || !form.mobile.trim()) {
-      setError('Name and mobile number are required.');
-      return;
-    }
+  if (!form.name.trim()) {
+  setError('Customer name is required.');
+  return;
+}
     if (!form.morning_enabled && !form.evening_enabled) {
       setError('Please enable at least one delivery shift (Morning and/or Evening).');
       return;
@@ -126,9 +126,14 @@ export default function AddCustomer() {
           </div>
 
           <div className="form-group">
-            <label>Mobile Number *</label>
-            <input className="form-control" value={form.mobile} onChange={(e) => setField('mobile', e.target.value)} required />
-          </div>
+            <label>Mobile Number</label>
+  <input
+    type="tel"
+    className="form-control"
+    value={form.mobile}
+    onChange={(e) => setField('mobile', e.target.value)}
+  />
+</div>
 
           <div className="form-group">
             <label>Address</label>
@@ -169,7 +174,7 @@ export default function AddCustomer() {
               onChange={(e) => setField('morning_enabled', e.target.checked)}
               id="morning_enabled"
             />
-            <label htmlFor="morning_enabled" style={{ margin: 0 }}>🌅 Morning Delivery</label>
+            <label htmlFor="morning_enabled" style={{ margin: 0 }}>Morning Delivery</label>
           </div>
           {form.morning_enabled && (
             <div className="form-group">
@@ -189,7 +194,7 @@ export default function AddCustomer() {
               onChange={(e) => setField('evening_enabled', e.target.checked)}
               id="evening_enabled"
             />
-            <label htmlFor="evening_enabled" style={{ margin: 0 }}>🌇 Evening Delivery</label>
+            <label htmlFor="evening_enabled" style={{ margin: 0 }}>Evening Delivery</label>
           </div>
           {form.evening_enabled && (
             <div className="form-group">
@@ -201,7 +206,6 @@ export default function AddCustomer() {
               />
             </div>
           )}
-          <div className="form-hint">These are just defaults - you can always adjust the quantity on any given day from the Delivery screen.</div>
         </div>
 
         <div className="card">

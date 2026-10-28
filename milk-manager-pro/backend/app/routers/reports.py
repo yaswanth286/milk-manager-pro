@@ -23,7 +23,7 @@ router = APIRouter(prefix="/reports", tags=["Reports"])
 @router.get("/outstanding-balances")
 def outstanding_balances_report(
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user),
+    current_user: models.User = Depends(auth.require_staff),
 ):
     """One row per customer with money still owed (sorted highest first)."""
     customers = db.query(models.Customer).filter(models.Customer.is_active.is_(True)).all()
@@ -44,7 +44,7 @@ def litres_and_revenue_report(
     customer_id: Optional[int] = None,
     shift: Optional[models.Shift] = None,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user),
+    current_user: models.User = Depends(auth.require_staff),
 ):
     """Total litres sold & revenue earned in a date range - filterable by customer/shift."""
     query = db.query(models.Delivery).filter(
@@ -78,7 +78,7 @@ def payments_summary_report(
     date_from: date_type = Query(...),
     date_to: date_type = Query(...),
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user),
+    current_user: models.User = Depends(auth.require_staff),
 ):
     """Payments received in a date range, broken down by method."""
     payments = (
@@ -103,7 +103,7 @@ def payments_summary_report(
 def daily_report(
     for_date: date_type = Query(default_factory=date_type.today, alias="date"),
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user),
+    current_user: models.User = Depends(auth.require_staff),
 ):
     """Full breakdown of a single day, both shifts."""
     deliveries = db.query(models.Delivery).filter(models.Delivery.date == for_date).all()
