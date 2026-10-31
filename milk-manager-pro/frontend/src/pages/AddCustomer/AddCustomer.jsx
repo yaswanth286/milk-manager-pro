@@ -12,16 +12,10 @@ const QTY_PRESETS = [
   { label: '1 L',   value: '1' },
 ];
 
-/**
- * Quantity picker: preset chips + an editable input for custom amounts.
- * value / onChange work the same as a normal controlled input (string).
- */
 function QtyPicker({ value, onChange }) {
   const isPreset = QTY_PRESETS.some((p) => p.value === value);
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-      {/* Preset chips */}
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
         {QTY_PRESETS.map((p) => (
           <button
@@ -32,8 +26,8 @@ function QtyPicker({ value, onChange }) {
               padding: '6px 14px',
               borderRadius: '20px',
               border: '1.5px solid',
-              borderColor: value === p.value ? 'var(--primary, #3b82f6)' : 'var(--border, #d1d5db)',
-              background: value === p.value ? 'var(--primary, #3b82f6)' : 'transparent',
+              borderColor: value === p.value ? 'var(--color-primary)' : 'var(--color-border)',
+              background: value === p.value ? 'var(--color-primary)' : 'transparent',
               color: value === p.value ? '#fff' : 'inherit',
               cursor: 'pointer',
               fontSize: '0.85rem',
@@ -45,8 +39,6 @@ function QtyPicker({ value, onChange }) {
           </button>
         ))}
       </div>
-
-      {/* Custom / free-type input */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <input
           type="number"
@@ -58,7 +50,7 @@ function QtyPicker({ value, onChange }) {
           onChange={(e) => onChange(e.target.value)}
           style={{ maxWidth: '160px' }}
         />
-        <span style={{ fontSize: '0.85rem', color: 'var(--muted, #6b7280)' }}>litres</span>
+        <span style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>litres</span>
       </div>
     </div>
   );
@@ -79,6 +71,7 @@ const emptyForm = {
   advance_amount: '0',
   is_active: true,
   notes: '',
+  customer_code: '',
 };
 
 export default function AddCustomer() {
@@ -106,6 +99,8 @@ export default function AddCustomer() {
           advance_amount: String(c.advance_amount),
           notes: c.notes || '',
           address: c.address || '',
+          mobile: c.mobile || '',
+          customer_code: c.customer_code || '',
         })
       )
       .catch(() => setError('Could not load customer.'))
@@ -157,13 +152,13 @@ export default function AddCustomer() {
   };
 
   const handleDelete = async () => {
-    if (!confirm(`Delete ${form.name}? This also removes their delivery and payment history. This cannot be undone.`)) return;
+    if (!confirm(`Archive ${form.name}? They will be marked inactive. All their delivery, payment and billing history is preserved.`)) return;
     try {
       await deleteCustomer(id);
-      toast.success('Customer deleted');
+      toast.success('Customer archived');
       navigate('/customers');
     } catch {
-      toast.error('Unable to delete customer. Please try again.');
+      toast.error('Unable to archive customer. Please try again.');
     }
   };
 
@@ -179,20 +174,47 @@ export default function AddCustomer() {
         <div className="card">
           <div className="section-title">Basic Details</div>
 
+          {/* Show auto-generated customer ID in edit mode */}
+          {isEdit && form.customer_code && (
+            <div className="form-group">
+              <label>Customer ID</label>
+              <div className="form-control" style={{
+                background: 'var(--color-surface-alt)',
+                color: 'var(--color-text-muted)',
+                cursor: 'default',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}>
+                <span className="customer-code-tag">{form.customer_code}</span>
+                <span style={{ fontSize: '0.8rem' }}>Auto-generated · cannot be changed</span>
+              </div>
+            </div>
+          )}
+
           <div className="form-group">
             <label>Customer Name *</label>
             <input className="form-control" value={form.name} onChange={(e) => setField('name', e.target.value)} required />
           </div>
 
           <div className="form-group">
-            <label>Mobile Number</label>
-  <input
-    type="tel"
-    className="form-control"
-    value={form.mobile}
-    onChange={(e) => setField('mobile', e.target.value)}
-  />
-</div>
+            <label>
+              Mobile Number{' '}
+              <span style={{ fontWeight: 400, color: 'var(--color-text-muted)', fontSize: '0.82rem' }}>
+                (Optional)
+              </span>
+            </label>
+            <input
+              type="tel"
+              className="form-control"
+              placeholder="e.g. 9876543210"
+              value={form.mobile}
+              onChange={(e) => setField('mobile', e.target.value)}
+            />
+            <div style={{ fontSize: '0.78rem', color: 'var(--color-text-faint)', marginTop: 4 }}>
+              When provided, the customer can log in using this number.
+            </div>
+          </div>
 
           <div className="form-group">
             <label>Address</label>
@@ -296,7 +318,7 @@ export default function AddCustomer() {
 
         {isEdit && (
           <button type="button" className="btn btn-danger btn-block mt-12" onClick={handleDelete}>
-            Delete Customer
+            Archive Customer
           </button>
         )}
       </form>

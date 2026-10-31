@@ -72,6 +72,12 @@ class UserRole(str, enum.Enum):
     CUSTOMER = "customer"
 
 
+class BillStatus(str, enum.Enum):
+    DRAFT = "draft"
+    FINALIZED = "finalized"
+    REOPENED = "reopened"
+
+
 # ---------------------------------------------------------------------------
 # USERS - people who can log into the app (you, and later maybe helpers)
 # ---------------------------------------------------------------------------
@@ -100,8 +106,11 @@ class Customer(Base):
     __tablename__ = "customers"
 
     id = Column(Integer, primary_key=True, index=True)
+    # Auto-generated unique identifier, e.g. "CUS-0001".
+    customer_code = Column(String(20), nullable=True, unique=True, index=True)
     name = Column(String(120), nullable=False, index=True)
-    mobile = Column(String(20), nullable=False, index=True)
+    # Phone is intentionally optional — not every customer provides one.
+    mobile = Column(String(20), nullable=True, index=True)
     address = Column(Text, nullable=True)
 
     milk_type = Column(Enum(MilkType), default=MilkType.BUFFALO, nullable=False)
@@ -214,7 +223,7 @@ class MonthlyBill(Base):
     extra_total = Column(Float, default=0.0)
     total_litres = Column(Float, default=0.0)
 
-    rate_applied = Column(Float, default=0.0)  # rate used for this bill (weighted/blended if rate changed mid-month)
+    rate_applied = Column(Float, default=0.0)
     milk_charges = Column(Float, default=0.0)
 
     opening_balance = Column(Float, default=0.0)
@@ -223,6 +232,11 @@ class MonthlyBill(Base):
 
     days_delivered = Column(Integer, default=0)
     days_not_taken = Column(Integer, default=0)
+
+    # Bill lifecycle: draft -> finalized (immutable) -> reopened (editable again)
+    status = Column(Enum(BillStatus), default=BillStatus.DRAFT, nullable=False)
+    finalized_at = Column(DateTime, nullable=True)
+    reopen_reason = Column(Text, nullable=True)
 
     generated_at = Column(DateTime, default=datetime.utcnow)
 

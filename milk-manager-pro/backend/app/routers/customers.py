@@ -1,10 +1,12 @@
 """
 routers/customers.py
 ---------------------
-Everything about managing customers: create, list, search, view details,
-update, delete, and view their full consumption (delivery) history.
+Customer CRUD: create, list, search, view, update, archive (soft-delete).
 
-All routes here require a valid JWT (see `Depends(auth.get_current_user)`).
+Key changes in v2.0:
+- mobile is now optional; empty strings are converted to NULL.
+- Every customer gets a unique customer_code (CUS-0001, CUS-0002, …).
+- DELETE is replaced by archive (sets is_active=False) to preserve history.
 """
 
 from datetime import date
@@ -20,20 +22,22 @@ from app.database import get_db
 router = APIRouter(prefix="/customers", tags=["Customers"])
 
 
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
 def compute_current_balance(db: Session, customer: models.Customer) -> float:
     """
-    The single source of truth for "how much does this customer owe me
-    right now". Deliberately recomputed from raw data every time (not
-    stored) so it's always accurate and self-correcting:
+    Live balance: always recomputed from raw rows so it self-corrects.
 
-        current_balance =
-            previous_balance (carried in from notebook)
-          - advance_amount   (money already paid ahead of time)
-          + total milk charges ever delivered (actual_quantity * rate_applied)
-          - total payments ever made
+        balance = previous_balance - advance_amount
+                + Σ(actual_quantity × rate_applied)  [all deliveries]
+                - Σ(amount)                          [all payments]
     """
     total_charges = (
-        db.query(func.coalesce(func.sum(models.Delivery.actual_quantity * models.Delivery.rate_applied), 0.0))
+        db.query(func.coalesce(func.sum(
+            models.Delivery.actual_quantity * models.Delivery.rate_applied
+        ), 0.0))
         .filter(models.Delivery.customer_id == customer.id)
         .scalar()
     )
@@ -43,7 +47,8 @@ def compute_current_balance(db: Session, customer: models.Customer) -> float:
         .scalar()
     )
     return round(
-        customer.previous_balance - customer.advance_amount + total_charges - total_payments,
+        customer.previous_balance - customer.advance_amount
+        + total_charges - total_payments,
         2,
     )
 
@@ -54,9 +59,39 @@ def _to_customer_out(db: Session, c: models.Customer) -> schemas.CustomerOut:
     return out
 
 
+def _next_customer_code(db: Session) -> str:
+    """Thread-safe: reads the highest existing code and increments."""
+    row = (
+        db.query(models.Customer.customer_code)
+        .filter(models.Customer.customer_code.isnot(None))
+        .order_by(models.Customer.customer_code.desc())
+        .first()
+    )
+    if row and row[0]:
+        try:
+            num = int(row[0].split("-")[1]) + 1
+        except (IndexError, ValueError):
+            num = 1
+    else:
+        num = 1
+    return f"CUS-{num:04d}"
+
+
+def _sanitize_mobile(value: Optional[str]) -> Optional[str]:
+    """Convert empty/whitespace-only strings to None."""
+    if value is None:
+        return None
+    stripped = value.strip()
+    return stripped if stripped else None
+
+
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
+
 @router.get("", response_model=List[schemas.CustomerListItem])
 def list_customers(
-    search: Optional[str] = Query(None, description="Search by name or mobile number"),
+    search: Optional[str] = Query(None),
     active_only: bool = Query(False),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.require_staff),
@@ -64,12 +99,17 @@ def list_customers(
     query = db.query(models.Customer)
     if search:
         like = f"%{search}%"
-        query = query.filter(or_(models.Customer.name.ilike(like), models.Customer.mobile.ilike(like)))
+        query = query.filter(
+            or_(
+                models.Customer.name.ilike(like),
+                models.Customer.mobile.ilike(like),
+                models.Customer.customer_code.ilike(like),
+            )
+        )
     if active_only:
         query = query.filter(models.Customer.is_active.is_(True))
 
     customers = query.order_by(models.Customer.name.asc()).all()
-
     results = []
     for c in customers:
         item = schemas.CustomerListItem.model_validate(c)
@@ -84,12 +124,23 @@ def create_customer(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.require_staff),
 ):
-    customer = models.Customer(**payload.model_dump())
+    data = payload.model_dump()
+    data["mobile"] = _sanitize_mobile(data.get("mobile"))
+
+    customer = models.Customer(**data)
     if customer.start_date is None:
         customer.start_date = date.today()
+
+    # Assign unique customer code
+    customer.customer_code = _next_customer_code(db)
+
     db.add(customer)
-    db.flush()
-    auth.upsert_customer_login(db, customer)
+    db.flush()  # get the id before creating login
+
+    # Only create login if mobile is provided
+    if customer.mobile:
+        auth.upsert_customer_login(db, customer)
+
     db.commit()
     db.refresh(customer)
     return _to_customer_out(db, customer)
@@ -102,7 +153,9 @@ def get_my_customer(
 ):
     if current_user.role != models.UserRole.CUSTOMER or not current_user.customer_id:
         raise HTTPException(status_code=403, detail="Not a customer account")
-    customer = db.query(models.Customer).filter(models.Customer.id == current_user.customer_id).first()
+    customer = db.query(models.Customer).filter(
+        models.Customer.id == current_user.customer_id
+    ).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
     return _to_customer_out(db, customer)
@@ -115,7 +168,9 @@ def get_customer(
     current_user: models.User = Depends(auth.get_current_user),
 ):
     auth.assert_can_view_customer(current_user, customer_id)
-    customer = db.query(models.Customer).filter(models.Customer.id == customer_id).first()
+    customer = db.query(models.Customer).filter(
+        models.Customer.id == customer_id
+    ).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
     return _to_customer_out(db, customer)
@@ -128,51 +183,73 @@ def update_customer(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.require_staff),
 ):
-    customer = db.query(models.Customer).filter(models.Customer.id == customer_id).first()
+    customer = db.query(models.Customer).filter(
+        models.Customer.id == customer_id
+    ).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
 
-    # Only update fields the client actually sent (exclude_unset=True).
-    # NOTE: changing price_per_litre or default quantities here does NOT
-    # touch any existing Delivery rows - those keep their own snapshot
-    # values (rate_applied / planned_quantity), preserving history.
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    data = payload.model_dump(exclude_unset=True)
+
+    # Sanitize mobile: empty string → None
+    if "mobile" in data:
+        data["mobile"] = _sanitize_mobile(data["mobile"])
+
+    for field, value in data.items():
         setattr(customer, field, value)
 
-    auth.upsert_customer_login(db, customer)
+    # Update login account only if mobile is present
+    if customer.mobile:
+        auth.upsert_customer_login(db, customer)
+
     db.commit()
     db.refresh(customer)
     return _to_customer_out(db, customer)
 
 
-@router.delete("/{customer_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_customer(
+@router.delete("/{customer_id}", status_code=status.HTTP_200_OK)
+def archive_customer(
     customer_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.require_staff),
 ):
-    customer = db.query(models.Customer).filter(models.Customer.id == customer_id).first()
+    """
+    Soft-delete (archive) a customer.  Sets is_active=False and deactivates
+    their login account.  All delivery, payment, and billing history is
+    preserved and remains accessible.
+    """
+    customer = db.query(models.Customer).filter(
+        models.Customer.id == customer_id
+    ).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
-    db.delete(customer)
+
+    customer.is_active = False
+
+    # Deactivate their login account if one exists
+    login = db.query(models.User).filter(
+        models.User.customer_id == customer_id
+    ).first()
+    if login:
+        login.is_active = False
+
     db.commit()
-    return None
+    return {"detail": "Customer archived. History is preserved."}
 
 
 @router.get("/{customer_id}/consumption")
 def get_customer_consumption(
     customer_id: int,
-    year: int = Query(..., description="e.g. 2026"),
+    year: int = Query(...),
     month: int = Query(..., ge=1, le=12),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    """
-    Returns the day-by-day Morning/Evening/Status/Extra table used on the
-    Customer Details page, for a given month, plus rolled-up totals.
-    """
+    """Day-by-day Morning/Evening consumption table for a given month."""
     auth.assert_can_view_customer(current_user, customer_id)
-    customer = db.query(models.Customer).filter(models.Customer.id == customer_id).first()
+    customer = db.query(models.Customer).filter(
+        models.Customer.id == customer_id
+    ).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
 
@@ -189,8 +266,10 @@ def get_customer_consumption(
 
     by_date = {}
     for d in deliveries:
-        row = by_date.setdefault(d.date, {"morning": 0.0, "evening": 0.0, "extra": 0.0,
-                                           "status_morning": None, "status_evening": None})
+        row = by_date.setdefault(d.date, {
+            "morning": 0.0, "evening": 0.0, "extra": 0.0,
+            "status_morning": None, "status_evening": None,
+        })
         if d.shift == models.Shift.MORNING:
             row["morning"] = d.actual_quantity
             row["status_morning"] = d.status.value
@@ -215,6 +294,9 @@ def get_customer_consumption(
     total_morning = sum(r["morning"] for r in daily_rows)
     total_evening = sum(r["evening"] for r in daily_rows)
     total_extra = sum(r["extra"] for r in daily_rows)
+
+    # Not-taken days: count distinct calendar dates where every delivery that
+    # day had status NOT_TAKEN (i.e. the customer didn't receive anything).
     not_taken_days = sum(
         1 for d in deliveries if d.status == models.DeliveryStatus.NOT_TAKEN
     )
@@ -227,22 +309,15 @@ def get_customer_consumption(
 
     return {
         "customer_id": customer.id,
-        "customer_name": customer.name,
-        "mobile": customer.mobile,
-        "milk_type": customer.milk_type,
-        "rate": customer.price_per_litre,
-        "start_date": customer.start_date,
-        "morning_qty": customer.morning_default_qty,
-        "evening_qty": customer.evening_default_qty,
-        "previous_balance": customer.previous_balance,
-        "current_balance": compute_current_balance(db, customer),
+        "customer_code": customer.customer_code,
+        "name": customer.name,
         "year": year,
         "month": month,
         "daily_rows": daily_rows,
         "total_morning_litres": round(total_morning, 2),
         "total_evening_litres": round(total_evening, 2),
-        "total_litres": round(total_morning + total_evening, 2),
         "total_extra_litres": round(total_extra, 2),
         "total_not_taken_days": not_taken_days,
-        "total_payments": round(total_payments, 2),
+        "total_payments_ever": round(total_payments, 2),
+        "current_balance": compute_current_balance(db, customer),
     }

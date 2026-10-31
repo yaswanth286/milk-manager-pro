@@ -60,5 +60,5 @@ export function HomeRedirect() {
   if (user?.role === 'customer') {
     return <Navigate to="/my" replace />;
   }
-  return <Navigate to="/customers" replace />;
+  return <Navigate to="/dashboard" replace />;
 }

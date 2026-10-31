@@ -117,14 +117,21 @@ def find_login_user(db: Session, identifier: str):
 
 def upsert_customer_login(db: Session, customer: models.Customer) -> None:
     """
-    Every customer can log in with the mobile number saved on their card.
-    Username and password are both that mobile number (digits only).
+    Create or update the customer's login account using their mobile number
+    as both username and initial password.
+
+    If the customer has no mobile number, this function is a safe no-op —
+    they simply won't have a login account.
     """
+    # No mobile → no login account. This is intentional and safe.
+    if not customer.mobile or not customer.mobile.strip():
+        return
+
     digits = normalize_mobile(customer.mobile)
     if len(digits) < 8:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Enter a valid mobile number — customers use it to log in.",
+            detail="Enter a valid mobile number (at least 8 digits) — customers use it to log in.",
         )
 
     clash = (
@@ -133,7 +140,7 @@ def upsert_customer_login(db: Session, customer: models.Customer) -> None:
         .all()
     )
     for other in clash:
-        if normalize_mobile(other.mobile) == digits:
+        if other.mobile and normalize_mobile(other.mobile) == digits:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Another customer already uses this mobile number.",

@@ -11,6 +11,7 @@ import Login from './pages/Login/Login';
 const Customers = lazy(() => import('./pages/Customers/Customers'));
 const CustomerDetails = lazy(() => import('./pages/CustomerDetails/CustomerDetails'));
 const AddCustomer = lazy(() => import('./pages/AddCustomer/AddCustomer'));
+const Dashboard = lazy(() => import('./pages/Dashboard/Dashboard'));
 const MorningDelivery = lazy(() => import('./pages/MorningDelivery/MorningDelivery'));
 const EveningDelivery = lazy(() => import('./pages/EveningDelivery/EveningDelivery'));
 const Payments = lazy(() => import('./pages/Payments/Payments'));
@@ -48,6 +49,8 @@ export default function App() {
 
                   <Route element={<ProtectedLayout />}>
                     <Route path="/my" element={<CustomerOnly><CustomerDetails /></CustomerOnly>} />
+
+                    <Route path="/dashboard" element={<StaffOnly><Dashboard /></StaffOnly>} />
 
                     <Route path="/customers" element={<StaffOnly><Customers /></StaffOnly>} />
                     <Route path="/customers/new" element={<StaffOnly><AddCustomer /></StaffOnly>} />

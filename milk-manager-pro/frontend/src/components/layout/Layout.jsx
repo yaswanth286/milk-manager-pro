@@ -18,6 +18,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   Users, Sun as SunIcon, Wallet, BarChart3, Receipt, Settings as SettingsIcon,
   Menu, X, Search, Bell, LogOut, ChevronsLeft, ChevronsRight, Droplets, Milk,
+  LayoutDashboard,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { usePageHeaderContext } from '../../context/PageHeaderContext';
@@ -25,6 +26,7 @@ import PageTransition from '../ui/PageTransition';
 import ThemeToggle from '../ui/ThemeToggle';
 
 const OWNER_NAV = [
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/customers', label: 'Customers', icon: Users },
   { to: '/delivery/morning', label: 'Delivery', icon: SunIcon, matchPrefix: '/delivery' },
   { to: '/payments', label: 'Payments', icon: Wallet },
@@ -41,9 +43,9 @@ const CUSTOMER_NAV = [
 ];
 
 const OWNER_MOBILE_NAV = [
-  OWNER_NAV[0],
-  OWNER_NAV[1],
-  OWNER_NAV[2],
+  OWNER_NAV[0], // Dashboard
+  OWNER_NAV[1], // Customers
+  OWNER_NAV[2], // Delivery
   { to: '/more', label: 'More', icon: Menu },
 ];
 

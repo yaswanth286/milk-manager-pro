@@ -1,26 +1,20 @@
 """
 schemas.py
 ----------
-Pydantic "schemas" define the SHAPE of data going IN and OUT of the API.
+Pydantic schemas — shape of data going IN and OUT of the API.
 
-Beginner note - why do we need both models.py AND schemas.py?
-- models.py describes the DATABASE TABLES (SQLAlchemy).
-- schemas.py describes the JSON that the API accepts/returns (Pydantic).
-They usually look similar but serve different jobs: schemas validate input
-(e.g. reject a request missing "name"), format output, and let us hide
-fields (like hashed_password) that should never be sent to the frontend.
-
-Naming convention used here:
-  XCreate  -> fields needed to CREATE a new X (sent by frontend)
-  XUpdate  -> fields allowed when UPDATING X (all optional)
-  XOut     -> fields returned back to the frontend
+v2.0 changes:
+- mobile is Optional everywhere
+- customer_code added to all customer schemas
+- BillStatus added; BillOut now includes status
+- BillReopenRequest added for reopening finalized bills
 """
 
 from datetime import date, datetime
 from typing import Optional, List
 from pydantic import BaseModel, ConfigDict
 
-from app.models import MilkType, Shift, DeliveryStatus, PaymentMethod
+from app.models import MilkType, Shift, DeliveryStatus, PaymentMethod, BillStatus
 
 
 # ---------------------------------------------------------------------------
@@ -52,7 +46,7 @@ class UserOut(BaseModel):
 
 class CustomerBase(BaseModel):
     name: str
-    mobile: Optional[str] = None
+    mobile: Optional[str] = None       # Phone number is OPTIONAL
     address: Optional[str] = None
     milk_type: MilkType = MilkType.BUFFALO
     price_per_litre: float = 0.0
@@ -72,7 +66,7 @@ class CustomerCreate(CustomerBase):
 
 
 class CustomerUpdate(BaseModel):
-    """All fields optional - only send what you want to change."""
+    """All fields optional — only send what you want to change."""
     name: Optional[str] = None
     mobile: Optional[str] = None
     address: Optional[str] = None
@@ -92,14 +86,16 @@ class CustomerUpdate(BaseModel):
 class CustomerOut(CustomerBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
+    customer_code: Optional[str] = None
     created_at: datetime
-    current_balance: Optional[float] = None  # computed & attached by the API
+    current_balance: Optional[float] = None  # computed by API
 
 
 class CustomerListItem(BaseModel):
     """Lighter-weight shape used in list/search screens."""
     model_config = ConfigDict(from_attributes=True)
     id: int
+    customer_code: Optional[str] = None
     name: str
     mobile: Optional[str] = None
     milk_type: MilkType
@@ -203,6 +199,7 @@ class DailyConsumptionRow(BaseModel):
 class BillOut(BaseModel):
     customer_id: int
     customer_name: str
+    customer_code: Optional[str] = None
     mobile: Optional[str] = None
     year: int
     month: int
@@ -218,6 +215,13 @@ class BillOut(BaseModel):
     days_delivered: int
     days_not_taken: int
     daily_rows: List[DailyConsumptionRow]
+    # Bill lifecycle fields (present when retrieved from a saved bill record)
+    status: Optional[str] = None
+    finalized_at: Optional[datetime] = None
+
+
+class BillReopenRequest(BaseModel):
+    reason: str
 
 
 # ---------------------------------------------------------------------------

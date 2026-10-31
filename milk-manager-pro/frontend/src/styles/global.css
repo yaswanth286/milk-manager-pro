@@ -1324,3 +1324,120 @@ textarea.form-control { min-height: 80px; resize: vertical; }
   background: rgba(10, 14, 18, 0.5);
   z-index: 50;
 }
+
+/* ====================================================================
+   v2.0 additions
+   ==================================================================== */
+
+/* -------------------------------------------------------------------- */
+/* Customer code tag  (CUS-0001)                                         */
+/* -------------------------------------------------------------------- */
+
+.customer-code-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  background: var(--color-info-bg);
+  color: var(--color-info);
+  border: 1px solid color-mix(in srgb, var(--color-info) 20%, transparent);
+  font-family: 'Inter', monospace;
+  white-space: nowrap;
+}
+
+/* -------------------------------------------------------------------- */
+/* Bill status badges (extend the existing .badge system)                */
+/* -------------------------------------------------------------------- */
+
+/* finalized  → green (re-uses badge-delivered colours) */
+/* draft      → muted grey (re-uses badge-pending colours) */
+/* reopened   → amber (re-uses badge-not_taken colours) */
+/* The classes are already wired in Bills.jsx via BillStatusBadge;
+   badge-delivered / badge-pending / badge-not_taken already exist above.
+   We only add the extra delivery-row left-border for the new statuses. */
+
+.delivery-row.is-not_delivered { border-left: 3px solid var(--color-danger); }
+.delivery-row.is-holiday        { border-left: 3px solid var(--color-text-faint); }
+
+.status-btn.selected.not_delivered {
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+.status-btn.selected.holiday {
+  background: var(--color-neutral-bg);
+  border-color: var(--color-text-muted);
+  color: var(--color-text-muted);
+}
+
+/* Four-button grid (Delivered / Not Taken / Not Delivered / Holiday) */
+.status-btn-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+@media (min-width: 600px) {
+  .status-btn-row { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* -------------------------------------------------------------------- */
+/* Delivery progress bar                                                  */
+/* -------------------------------------------------------------------- */
+
+.delivery-progress-wrap {
+  margin-bottom: 14px;
+}
+
+.delivery-progress-bar {
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.delivery-progress-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: linear-gradient(90deg, var(--color-primary), var(--color-primary-dark));
+  transition: width 0.4s var(--ease);
+}
+
+.delivery-progress-label {
+  font-size: 0.74rem;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  margin-top: 5px;
+  text-align: right;
+}
+
+/* -------------------------------------------------------------------- */
+/* Finalized bill info banner                                             */
+/* -------------------------------------------------------------------- */
+
+.form-info {
+  background: var(--color-info-bg);
+  color: var(--color-info);
+  padding: 11px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.84rem;
+  margin-bottom: 14px;
+  font-weight: 600;
+  border: 1px solid color-mix(in srgb, var(--color-info) 25%, transparent);
+}
+
+/* -------------------------------------------------------------------- */
+/* Misc v2.0 utilities                                                   */
+/* -------------------------------------------------------------------- */
+
+/* Thin top-border separator used inside cards */
+.card-divider {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 14px 0;
+}
+
+/* "mt-12" already exists; add mt-8 for tighter spacing */
+.mt-8 { margin-top: 8px; }

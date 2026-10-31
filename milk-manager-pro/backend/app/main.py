@@ -21,19 +21,20 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import Base, engine
 from app import models  # noqa: F401 - importing registers the models with Base
-from app.bootstrap import ensure_schema, backfill_customer_logins
+from app.bootstrap import ensure_schema, backfill_customer_codes, backfill_customer_logins
 from app.routers import auth, customers, deliveries, payments, bills, dashboard, reports
 
 # Creates any tables that don't exist yet. Safe to call every startup -
 # it never drops or alters existing tables.
 Base.metadata.create_all(bind=engine)
 ensure_schema()
+backfill_customer_codes()
 backfill_customer_logins()
 
 app = FastAPI(
     title="Milk Manager Pro API",
     description="Backend API for managing daily buffalo/cow milk delivery, customers, payments and billing.",
-    version="1.0.0",
+    version="2.0.0",
 )
 
 # In production, replace "*" with your actual frontend domain(s) for security.

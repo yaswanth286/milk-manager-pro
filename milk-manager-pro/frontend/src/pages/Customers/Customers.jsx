@@ -9,9 +9,9 @@ import EmptyState from '../../components/ui/EmptyState';
 import { SkeletonRows } from '../../components/ui/Skeleton';
 
 const FILTERS = [
-  { key: 'all', label: 'All' },
-  { key: 'active', label: 'Active' },
-  { key: 'inactive', label: 'Inactive' },
+  { key: 'all',      label: 'All' },
+  { key: 'active',   label: 'Active' },
+  { key: 'inactive', label: 'Archived' },
 ];
 
 export default function Customers() {
@@ -19,10 +19,10 @@ export default function Customers() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [customers, setCustomers] = useState([]);
-  const [search, setSearch] = useState(searchParams.get('search') || '');
-  const [filter, setFilter] = useState('all');
-  const [loading, setLoading] = useState(true);
+  const [customers, setCustomers]   = useState([]);
+  const [search,    setSearch]      = useState(searchParams.get('search') || '');
+  const [filter,    setFilter]      = useState('all');
+  const [loading,   setLoading]     = useState(true);
 
   const fetchCustomers = useCallback((q) => {
     setLoading(true);
@@ -37,16 +37,13 @@ export default function Customers() {
   }, [search, fetchCustomers]);
 
   useEffect(() => {
-    // Keep the URL in sync so the topbar's global search (which navigates
-    // here with ?search=) and typing directly in this page's search box
-    // both work the same way.
     if (search) setSearchParams({ search }, { replace: true });
-    else setSearchParams({}, { replace: true });
+    else        setSearchParams({},          { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
-  const visibleCustomers = customers.filter((c) => {
-    if (filter === 'active') return c.is_active;
+  const visible = customers.filter((c) => {
+    if (filter === 'active')   return  c.is_active;
     if (filter === 'inactive') return !c.is_active;
     return true;
   });
@@ -56,7 +53,7 @@ export default function Customers() {
       <div className="search-bar">
         <Search size={17} color="var(--color-text-faint)" />
         <input
-          placeholder="Search by name or mobile number..."
+          placeholder="Search by name, mobile or ID (CUS-XXXX)…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -64,7 +61,11 @@ export default function Customers() {
 
       <div className="tab-row">
         {FILTERS.map((f) => (
-          <button key={f.key} className={`tab-btn ${filter === f.key ? 'active' : ''}`} onClick={() => setFilter(f.key)}>
+          <button
+            key={f.key}
+            className={`tab-btn ${filter === f.key ? 'active' : ''}`}
+            onClick={() => setFilter(f.key)}
+          >
             {f.label}
           </button>
         ))}
@@ -72,7 +73,7 @@ export default function Customers() {
 
       {loading && <SkeletonRows count={5} />}
 
-      {!loading && visibleCustomers.length === 0 && (
+      {!loading && visible.length === 0 && (
         <EmptyState
           icon={Users}
           title="No customers yet"
@@ -85,7 +86,7 @@ export default function Customers() {
         />
       )}
 
-      {visibleCustomers.map((c, i) => (
+      {visible.map((c, i) => (
         <motion.div
           key={c.id}
           className="customer-card"
@@ -95,20 +96,39 @@ export default function Customers() {
           transition={{ duration: 0.2, delay: Math.min(i * 0.03, 0.3) }}
         >
           <div>
-            <div className="name">{c.name} {!c.is_active && <span className="badge badge-holiday">Inactive</span>}</div>
-            <div className="meta">
-              {c.mobile} · {c.milk_type === 'buffalo' ? '🐃 Buffalo' : '🐄 Cow'}
+            {/* Name + status badges */}
+            <div className="name" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              {c.name}
+              {!c.is_active && <span className="badge badge-holiday">Archived</span>}
             </div>
+
+            {/* Customer code + mobile */}
+            <div className="meta" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              {c.customer_code && (
+                <span className="customer-code-tag">{c.customer_code}</span>
+              )}
+              <span>
+                {c.mobile
+                  ? c.mobile
+                  : <span className="text-muted" style={{ fontStyle: 'italic' }}>No phone</span>}
+              </span>
+              <span>·</span>
+              <span>{c.milk_type === 'buffalo' ? '🐃 Buffalo' : '🐄 Cow'}</span>
+            </div>
+
             <div className="mt-12">
               {c.morning_enabled && <span className="shift-tag">Morning</span>}
               {c.evening_enabled && <span className="shift-tag">Evening</span>}
             </div>
           </div>
-          <div style={{ textAlign: 'right' }}>
+
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
             <div className={`balance ${c.current_balance > 0 ? 'text-danger' : 'text-success'}`}>
               {formatCurrency(Math.abs(c.current_balance || 0))}
             </div>
-            <div className="text-sm text-muted">{c.current_balance > 0 ? 'due' : 'settled'}</div>
+            <div className="text-sm text-muted">
+              {c.current_balance > 0 ? 'due' : 'settled'}
+            </div>
           </div>
         </motion.div>
       ))}

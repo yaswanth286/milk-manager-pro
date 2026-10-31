@@ -161,7 +161,9 @@ function PaymentForm({ preselectedCustomer, onSaved }) {
         <select className="form-control" value={form.customer_id} onChange={(e) => setField('customer_id', e.target.value)} required>
           <option value="">Select customer...</option>
           {customers.map((c) => (
-            <option key={c.id} value={c.id}>{c.name} ({c.mobile})</option>
+            <option key={c.id} value={c.id}>
+              {c.name}{c.customer_code ? ` (${c.customer_code})` : ''}{c.mobile ? ` · ${c.mobile}` : ''}
+            </option>
           ))}
         </select>
       </div>
