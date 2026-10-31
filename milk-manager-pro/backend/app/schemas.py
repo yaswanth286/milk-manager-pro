@@ -52,7 +52,7 @@ class UserOut(BaseModel):
 
 class CustomerBase(BaseModel):
     name: str
-    mobile: str
+    mobile: Optional[str] = None
     address: Optional[str] = None
     milk_type: MilkType = MilkType.BUFFALO
     price_per_litre: float = 0.0
@@ -101,7 +101,7 @@ class CustomerListItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     name: str
-    mobile: str
+    mobile: Optional[str] = None
     milk_type: MilkType
     morning_enabled: bool
     evening_enabled: bool
@@ -203,7 +203,7 @@ class DailyConsumptionRow(BaseModel):
 class BillOut(BaseModel):
     customer_id: int
     customer_name: str
-    mobile: str
+    mobile: Optional[str] = None
     year: int
     month: int
     morning_total: float

@@ -5,6 +5,65 @@ import { useToast } from '../../context/ToastContext';
 import { createCustomer, getCustomer, updateCustomer, deleteCustomer } from '../../services/customerService';
 import { todayISO } from '../../utils/format';
 
+const QTY_PRESETS = [
+  { label: '250 ml', value: '0.25' },
+  { label: '500 ml', value: '0.5' },
+  { label: '750 ml', value: '0.75' },
+  { label: '1 L',   value: '1' },
+];
+
+/**
+ * Quantity picker: preset chips + an editable input for custom amounts.
+ * value / onChange work the same as a normal controlled input (string).
+ */
+function QtyPicker({ value, onChange }) {
+  const isPreset = QTY_PRESETS.some((p) => p.value === value);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {/* Preset chips */}
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        {QTY_PRESETS.map((p) => (
+          <button
+            key={p.value}
+            type="button"
+            onClick={() => onChange(p.value)}
+            style={{
+              padding: '6px 14px',
+              borderRadius: '20px',
+              border: '1.5px solid',
+              borderColor: value === p.value ? 'var(--primary, #3b82f6)' : 'var(--border, #d1d5db)',
+              background: value === p.value ? 'var(--primary, #3b82f6)' : 'transparent',
+              color: value === p.value ? '#fff' : 'inherit',
+              cursor: 'pointer',
+              fontSize: '0.85rem',
+              fontWeight: value === p.value ? 600 : 400,
+              transition: 'all 0.15s',
+            }}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Custom / free-type input */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <input
+          type="number"
+          step="0.05"
+          min="0"
+          className="form-control"
+          placeholder="Other (e.g. 1.5)"
+          value={isPreset ? '' : value}
+          onChange={(e) => onChange(e.target.value)}
+          style={{ maxWidth: '160px' }}
+        />
+        <span style={{ fontSize: '0.85rem', color: 'var(--muted, #6b7280)' }}>litres</span>
+      </div>
+    </div>
+  );
+}
+
 const emptyForm = {
   name: '',
   mobile: '',
@@ -178,11 +237,10 @@ export default function AddCustomer() {
           </div>
           {form.morning_enabled && (
             <div className="form-group">
-              <label>Morning Quantity (litres)</label>
-              <input
-                type="number" step="0.1" className="form-control"
+              <label>Morning Quantity</label>
+              <QtyPicker
                 value={form.morning_default_qty}
-                onChange={(e) => setField('morning_default_qty', e.target.value)}
+                onChange={(v) => setField('morning_default_qty', v)}
               />
             </div>
           )}
@@ -198,11 +256,10 @@ export default function AddCustomer() {
           </div>
           {form.evening_enabled && (
             <div className="form-group">
-              <label>Evening Quantity (litres)</label>
-              <input
-                type="number" step="0.1" className="form-control"
+              <label>Evening Quantity</label>
+              <QtyPicker
                 value={form.evening_default_qty}
-                onChange={(e) => setField('evening_default_qty', e.target.value)}
+                onChange={(v) => setField('evening_default_qty', v)}
               />
             </div>
           )}

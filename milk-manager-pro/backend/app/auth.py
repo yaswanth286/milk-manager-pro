@@ -1,25 +1,3 @@
-"""
-auth.py
--------
-Everything related to logging in securely.
-
-Two separate concerns live here:
-
-1. PASSWORD HASHING
-   We never store a customer/user's real password in the database.
-   We store a "hash" - a one-way scrambled version. `passlib`'s bcrypt
-   algorithm does this. Even if someone steals the database, they can't
-   read the real passwords back out.
-
-2. JWT (JSON Web Token)
-   After a successful login, the server creates a signed token containing
-   the username and an expiry time. The frontend stores this token and
-   sends it in the `Authorization: Bearer <token>` header on every
-   subsequent request. The server checks the signature to prove the token
-   is genuine and hasn't expired - this is what "logs the user in" for
-   each API call, without the server having to remember sessions.
-"""
-
 import os
 from datetime import datetime, timedelta
 from typing import Optional
