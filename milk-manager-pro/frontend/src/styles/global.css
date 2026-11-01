@@ -1441,3 +1441,111 @@ textarea.form-control { min-height: 80px; resize: vertical; }
 
 /* "mt-12" already exists; add mt-8 for tighter spacing */
 .mt-8 { margin-top: 8px; }
+
+/* ====================================================================
+   v3.0 additions — safe quantity inputs, delivery editor, presets
+   ==================================================================== */
+
+/* ── Remove native number-input spinner arrows everywhere ──────────── */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield; /* Firefox */
+}
+
+/* ── .qty-safe-input ───────────────────────────────────────────────── */
+/* Used for all quantity inputs in both the delivery screen and the     */
+/* customer form. No spinners, no accidental wheel-scroll changes.      */
+.qty-safe-input {
+  width: 90px;
+  padding: 9px 10px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: center;
+  transition: border-color var(--dur-fast) var(--ease),
+              box-shadow   var(--dur-fast) var(--ease);
+  /* Spinners already hidden by the rules above */
+}
+.qty-safe-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus);
+}
+.qty-safe-input::placeholder {
+  color: var(--color-text-faint);
+  font-weight: 400;
+}
+
+/* ── Preset chip strip ─────────────────────────────────────────────── */
+.preset-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.preset-chip {
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease);
+  white-space: nowrap;
+}
+.preset-chip:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary-dark);
+}
+.preset-chip.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+[data-theme='dark'] .preset-chip:hover { color: var(--color-primary); }
+[data-theme='dark'] .preset-chip.active { color: #fff; }
+
+/* ── Delivery quantity editor (expanded row panel) ─────────────────── */
+.delivery-qty-editor {
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.qty-editor-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.qty-editor-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.qty-editor-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ── mt-8 utility (already added in v2.0 but repeated here safely) ─── */
+/* (CSS ignores duplicate rules — no harm) */
+.mt-8 { margin-top: 8px; }

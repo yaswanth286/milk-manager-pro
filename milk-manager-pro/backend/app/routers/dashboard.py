@@ -20,11 +20,18 @@ router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
 def _summarize(rows) -> schemas.ShiftSummary:
     delivered = sum(1 for r in rows if r["status"] == "delivered")
-    not_taken = sum(1 for r in rows if r["status"] in ("not_taken", "not_delivered", "holiday"))
+    not_taken = sum(1 for r in rows if r["status"] in (
+        "not_taken", "not_delivered", "holiday"
+    ))
     pending = sum(1 for r in rows if r["status"] == "pending")
-    total_litres = sum(r["actual_quantity"] for r in rows if r["status"] == "delivered")
+    total_litres = sum(
+        r["actual_quantity"] for r in rows if r["status"] == "delivered"
+    )
     return schemas.ShiftSummary(
-        delivered=delivered, not_taken=not_taken, pending=pending, total_litres=round(total_litres, 2)
+        delivered=delivered,
+        not_taken=not_taken,
+        pending=pending,
+        total_litres=round(total_litres, 2),
     )
 
 

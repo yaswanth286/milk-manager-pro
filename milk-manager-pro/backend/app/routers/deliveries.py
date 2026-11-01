@@ -30,50 +30,80 @@ from app.database import get_db
 router = APIRouter(prefix="/deliveries", tags=["Deliveries"])
 
 
-def _shift_customers_query(db: Session, shift: models.Shift):
-    col = models.Customer.morning_enabled if shift == models.Shift.MORNING else models.Customer.evening_enabled
-    return db.query(models.Customer).filter(col.is_(True), models.Customer.is_active.is_(True))
-
-
 def _build_shift_view(db: Session, shift: models.Shift, target_date: date_type):
-    customers = _shift_customers_query(db, shift).order_by(models.Customer.name.asc()).all()
+    """
+    Return one row per ACTIVE customer for the given shift+date.
+
+    Key rule (requirement §2):
+    ALL active customers appear in BOTH morning AND evening sections.
+    A customer's regular schedule determines the default (planned) quantity
+    for that shift — 0 when not subscribed — but it NEVER hides them from
+    a shift or prevents recording a delivery.
+
+    Row shape
+    ---------
+    is_scheduled  : True if this shift is part of the customer's regular plan.
+    planned_quantity : customer's default qty for this shift (0 if not scheduled).
+    extra_quantity   : qty delivered above planned_quantity.
+    actual_quantity  : planned + extra (what was really handed over).
+    """
+    customers = (
+        db.query(models.Customer)
+        .filter(models.Customer.is_active.is_(True))
+        .order_by(models.Customer.name.asc())
+        .all()
+    )
 
     existing = {
         d.customer_id: d
         for d in db.query(models.Delivery).filter(
-            models.Delivery.date == target_date, models.Delivery.shift == shift
+            models.Delivery.date == target_date,
+            models.Delivery.shift == shift,
         ).all()
     }
 
     rows = []
     for c in customers:
-        default_qty = c.morning_default_qty if shift == models.Shift.MORNING else c.evening_default_qty
+        # Whether this shift is part of the customer's standing schedule
+        is_scheduled = (
+            c.morning_enabled if shift == models.Shift.MORNING else c.evening_enabled
+        )
+        # Regular qty for this shift — 0 when not scheduled
+        default_qty = (
+            (c.morning_default_qty if shift == models.Shift.MORNING else c.evening_default_qty)
+            if is_scheduled else 0.0
+        )
+
         d = existing.get(c.id)
         if d:
             rows.append({
-                "delivery_id": d.id,
-                "customer_id": c.id,
-                "customer_name": c.name,
-                "mobile": c.mobile,
+                "delivery_id":     d.id,
+                "customer_id":     c.id,
+                "customer_name":   c.name,
+                "customer_code":   c.customer_code,
+                "mobile":          c.mobile,
+                "is_scheduled":    is_scheduled,
                 "planned_quantity": d.planned_quantity,
+                "extra_quantity":  d.extra_quantity,
                 "actual_quantity": d.actual_quantity,
-                "extra_quantity": d.extra_quantity,
-                "status": d.status.value,
-                "notes": d.notes,
-                "is_saved": True,
+                "status":          d.status.value,
+                "notes":           d.notes,
+                "is_saved":        True,
             })
         else:
             rows.append({
-                "delivery_id": None,
-                "customer_id": c.id,
-                "customer_name": c.name,
-                "mobile": c.mobile,
+                "delivery_id":     None,
+                "customer_id":     c.id,
+                "customer_name":   c.name,
+                "customer_code":   c.customer_code,
+                "mobile":          c.mobile,
+                "is_scheduled":    is_scheduled,
                 "planned_quantity": default_qty,
+                "extra_quantity":  0.0,
                 "actual_quantity": default_qty,
-                "extra_quantity": 0.0,
-                "status": "pending",  # not yet marked today
-                "notes": None,
-                "is_saved": False,
+                "status":          "pending",
+                "notes":           None,
+                "is_saved":        False,
             })
     return rows
 
@@ -103,10 +133,21 @@ def mark_delivery(
     current_user: models.User = Depends(auth.require_staff),
 ):
     """
-    Create-or-update a single delivery record. This is what fires every
-    time you tap "Save" on a customer row in the Morning/Evening screen.
+    Create-or-update a single delivery record.
+
+    planned_quantity = customer's regular qty for the shift (0 when the
+    shift is not part of their schedule, e.g. an evening-only customer
+    receiving an ad-hoc morning delivery).
+
+    actual_quantity  = planned + extra (the real amount handed over).
+    extra_quantity   = actual - planned (floored at 0).
+
+    For NOT_DELIVERED the actual and extra quantities are forced to 0
+    so the customer is never charged for milk they did not receive.
     """
-    customer = db.query(models.Customer).filter(models.Customer.id == payload.customer_id).first()
+    customer = db.query(models.Customer).filter(
+        models.Customer.id == payload.customer_id
+    ).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
 
@@ -120,36 +161,44 @@ def mark_delivery(
         .first()
     )
 
+    # Planned qty: use the customer's regular default only when they are
+    # subscribed to this shift; otherwise 0 (ad-hoc delivery).
+    is_scheduled = (
+        customer.morning_enabled
+        if payload.shift == models.Shift.MORNING
+        else customer.evening_enabled
+    )
     planned_qty = (
-        customer.morning_default_qty if payload.shift == models.Shift.MORNING else customer.evening_default_qty
+        (customer.morning_default_qty if payload.shift == models.Shift.MORNING else customer.evening_default_qty)
+        if is_scheduled else 0.0
     )
 
-    # "Not taken" / "not delivered" / "holiday" -> zero out actual quantity,
-    # so the customer is never charged for milk they didn't get.
+    # NOT_DELIVERED → zero billable quantity
     actual_qty = payload.actual_quantity
-    if payload.status in (models.DeliveryStatus.NOT_TAKEN, models.DeliveryStatus.NOT_DELIVERED, models.DeliveryStatus.HOLIDAY):
+    if payload.status == models.DeliveryStatus.NOT_DELIVERED:
         actual_qty = 0.0
 
+    # Keep actual_qty non-negative
+    actual_qty = max(actual_qty, 0.0)
     extra_qty = max(actual_qty - planned_qty, 0.0)
 
     if delivery:
         delivery.actual_quantity = actual_qty
-        delivery.status = payload.status
-        delivery.extra_quantity = extra_qty
-        delivery.notes = payload.notes
-        # planned_quantity and rate_applied are NOT changed on update -
-        # they stay as the historical snapshot from when first created.
+        delivery.extra_quantity  = extra_qty
+        delivery.status          = payload.status
+        delivery.notes           = payload.notes
+        # planned_quantity and rate_applied stay as the original snapshot.
     else:
         delivery = models.Delivery(
-            customer_id=payload.customer_id,
-            date=payload.date,
-            shift=payload.shift,
-            planned_quantity=planned_qty,
-            actual_quantity=actual_qty,
-            extra_quantity=extra_qty,
-            status=payload.status,
-            rate_applied=customer.price_per_litre,  # snapshot at creation time
-            notes=payload.notes,
+            customer_id      = payload.customer_id,
+            date             = payload.date,
+            shift            = payload.shift,
+            planned_quantity = planned_qty,
+            actual_quantity  = actual_qty,
+            extra_quantity   = extra_qty,
+            status           = payload.status,
+            rate_applied     = customer.price_per_litre,  # snapshot at creation time
+            notes            = payload.notes,
         )
         db.add(delivery)
 
@@ -222,6 +271,75 @@ def create_delivery(
     out = schemas.DeliveryOut.model_validate(delivery)
     out.customer_name = customer.name
     return out
+
+
+@router.post("/repair-rates", tags=["Deliveries"])
+def repair_delivery_rates(
+    customer_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_staff),
+):
+    """
+    Fix the ₹0 bill bug.
+
+    When a customer's price_per_litre was ₹0 at the time deliveries were
+    recorded, those delivery rows have rate_applied=0.  This endpoint
+    updates every such row for the given customer to use the customer's
+    *current* price_per_litre, so that the bill recalculates correctly.
+
+    Only delivery rows with rate_applied == 0 are touched.
+    Quantity, status, date, and all other fields are left completely
+    unchanged.
+
+    Owner/staff only.  Returns a summary of how many rows were fixed.
+    """
+    customer = db.query(models.Customer).filter(
+        models.Customer.id == customer_id
+    ).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    if customer.price_per_litre <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Customer's current price_per_litre is ₹{customer.price_per_litre}. "
+                "Please set the correct rate on the customer first, then call this endpoint."
+            ),
+        )
+
+    # Find all deliveries for this customer that have a zero rate snapshot.
+    # We only patch rate_applied=0 rows to avoid accidentally overwriting
+    # deliveries that legitimately had a different historical rate.
+    stale = (
+        db.query(models.Delivery)
+        .filter(
+            models.Delivery.customer_id == customer_id,
+            models.Delivery.rate_applied == 0.0,
+        )
+        .all()
+    )
+
+    fixed_count = 0
+    for delivery in stale:
+        delivery.rate_applied = customer.price_per_litre
+        fixed_count += 1
+
+    db.commit()
+
+    return {
+        "customer_id": customer_id,
+        "customer_name": customer.name,
+        "rate_applied": customer.price_per_litre,
+        "deliveries_fixed": fixed_count,
+        "message": (
+            f"Updated {fixed_count} delivery row(s) from ₹0 → "
+            f"₹{customer.price_per_litre}/L. "
+            "Re-open any finalized bills and regenerate them to reflect the corrected charges."
+            if fixed_count > 0
+            else "No zero-rate delivery rows found. Nothing to fix."
+        ),
+    }
 
 
 @router.put("/{delivery_id}", response_model=schemas.DeliveryOut)

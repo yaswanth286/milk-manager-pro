@@ -1,19 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Pencil, CreditCard, Receipt, ChevronLeft, ChevronRight, Phone } from 'lucide-react';
+import { Pencil, Receipt, ChevronLeft, ChevronRight, Phone } from 'lucide-react';
 import { usePageHeader } from '../../context/PageHeaderContext';
-import { useAuth } from '../../context/AuthContext';
 import { getCustomer, getCustomerConsumption } from '../../services/customerService';
-import { formatCurrency, formatLitres, formatDateShort } from '../../utils/format';
+import { formatLitres, formatDateShort } from '../../utils/format';
 import { MONTH_NAMES, STATUS_LABELS } from '../../constants';
 import { SkeletonText, SkeletonCard } from '../../components/ui/Skeleton';
 
 export default function CustomerDetails() {
-  const { id: paramId } = useParams();
-  const { user }        = useAuth();
-  const isCustomerView  = user?.role === 'customer';
-  const id              = isCustomerView ? user.customer_id : paramId;
-  const navigate        = useNavigate();
+  const { id } = useParams();
+  const navigate = useNavigate();
 
   const now = new Date();
   const [year,        setYear]        = useState(now.getFullYear());
@@ -23,10 +19,8 @@ export default function CustomerDetails() {
   const [loading,     setLoading]     = useState(true);
 
   usePageHeader(
-    isCustomerView ? 'My milk' : (customer?.name || 'Customer Details'),
-    customer
-      ? `Customer since ${customer.start_date}`
-      : 'Your deliveries, balance, and history',
+    customer?.name || 'Customer Details',
+    customer ? `Customer since ${customer.start_date}` : '',
   );
 
   useEffect(() => {
@@ -61,7 +55,7 @@ export default function CustomerDetails() {
 
   return (
     <div>
-      {/* ── Customer header card ─────────────────────────────────────── */}
+      {/* ── Customer header ──────────────────────────────────── */}
       <div className="card">
         <div className="flex-between">
           <div style={{ minWidth: 0 }}>
@@ -72,14 +66,12 @@ export default function CustomerDetails() {
               )}
             </div>
 
-            {/* Customer code */}
             {customer.customer_code && (
               <div className="text-sm" style={{ marginTop: 2 }}>
                 <span className="customer-code-tag">{customer.customer_code}</span>
               </div>
             )}
 
-            {/* Mobile */}
             <div className="text-sm text-muted" style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
               <Phone size={12} />
               {customer.mobile
@@ -90,17 +82,15 @@ export default function CustomerDetails() {
             </div>
           </div>
 
-          {!isCustomerView && (
-            <button
-              className="btn btn-outline btn-sm"
-              onClick={() => navigate(`/customers/${id}/edit`)}
-            >
-              <Pencil size={14} /> Edit
-            </button>
-          )}
+          <button
+            className="btn btn-outline btn-sm"
+            onClick={() => navigate(`/customers/${id}/edit`)}
+          >
+            <Pencil size={14} /> Edit
+          </button>
         </div>
 
-        {/* Shift + rate info */}
+        {/* Shift + rate */}
         <div className="mt-16" style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
           {customer.morning_enabled && (
             <div>
@@ -114,33 +104,13 @@ export default function CustomerDetails() {
               {formatLitres(customer.evening_default_qty)}
             </div>
           )}
-          <div className="text-sm text-muted">Rate: ₹{customer.price_per_litre}/L</div>
-        </div>
-
-        {/* Balance + payment CTA */}
-        <div className="mt-16 flex-between">
-          <div>
-            <div className="text-sm text-muted">Current Balance</div>
-            <div
-              style={{ fontWeight: 800, fontSize: '1.3rem', fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-              className={customer.current_balance > 0 ? 'text-danger' : 'text-success'}
-            >
-              {formatCurrency(Math.abs(customer.current_balance || 0))}{' '}
-              {customer.current_balance > 0 ? 'due' : 'settled'}
-            </div>
+          <div className="text-sm text-muted">
+            Rate: ₹{customer.price_per_litre}/L
           </div>
-          {!isCustomerView && (
-            <Link
-              to={`/payments/new?customer_id=${id}`}
-              className="btn btn-accent btn-sm"
-            >
-              <CreditCard size={14} /> Record Payment
-            </Link>
-          )}
         </div>
       </div>
 
-      {/* ── Month navigator ───────────────────────────────────────────── */}
+      {/* ── Month navigator ───────────────────────────────────── */}
       <div className="date-nav">
         <button onClick={() => shiftMonth(-1)} aria-label="Previous month">
           <ChevronLeft size={16} />
@@ -153,7 +123,7 @@ export default function CustomerDetails() {
         </button>
       </div>
 
-      {/* ── Monthly stats ─────────────────────────────────────────────── */}
+      {/* ── Monthly stats ─────────────────────────────────────── */}
       {loading && (
         <div className="grid-cards mb-12">
           <SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard />
@@ -176,7 +146,7 @@ export default function CustomerDetails() {
               <div className="stat-value">{formatLitres(consumption.total_extra_litres)}</div>
             </div>
             <div className="stat-card danger">
-              <div className="stat-label">Not Taken Days</div>
+              <div className="stat-label">Days Not Taken</div>
               <div className="stat-value">{consumption.total_not_taken_days}</div>
             </div>
           </div>
@@ -184,22 +154,16 @@ export default function CustomerDetails() {
           {/* Bill link */}
           <div className="card mb-12">
             <Link
-              to={
-                isCustomerView
-                  ? `/bills?year=${year}&month=${month}`
-                  : `/bills?customer_id=${id}&year=${year}&month=${month}`
-              }
+              to={`/bills?customer_id=${id}&year=${year}&month=${month}`}
               className="btn btn-primary btn-block"
             >
               <Receipt size={16} />{' '}
-              {isCustomerView
-                ? `View bill for ${MONTH_NAMES[month - 1]}`
-                : `View / Generate Bill for ${MONTH_NAMES[month - 1]}`}
+              View / Generate Bill for {MONTH_NAMES[month - 1]}
             </Link>
           </div>
 
           {/* Daily table */}
-          <div className="section-title">Daily Consumption</div>
+          <div className="section-title">Daily Consumption — {MONTH_NAMES[month - 1]} {year}</div>
           <div className="table-scroll">
             <table className="data-table">
               <thead>
@@ -214,7 +178,8 @@ export default function CustomerDetails() {
               <tbody>
                 {consumption.daily_rows.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="text-muted" style={{ textAlign: 'center', padding: 20 }}>
+                    <td colSpan={5} className="text-muted"
+                        style={{ textAlign: 'center', padding: 20 }}>
                       No records for this month yet.
                     </td>
                   </tr>
@@ -230,14 +195,15 @@ export default function CustomerDetails() {
                           {STATUS_LABELS[row.status_morning]}
                         </span>
                       )}
-                      {row.status_evening && row.status_evening !== row.status_morning && (
-                        <span
-                          className={`badge badge-${row.status_evening}`}
-                          style={{ marginLeft: 4 }}
-                        >
-                          {STATUS_LABELS[row.status_evening]}
-                        </span>
-                      )}
+                      {row.status_evening &&
+                        row.status_evening !== row.status_morning && (
+                          <span
+                            className={`badge badge-${row.status_evening}`}
+                            style={{ marginLeft: 4 }}
+                          >
+                            {STATUS_LABELS[row.status_evening]}
+                          </span>
+                        )}
                     </td>
                     <td>{row.extra > 0 ? formatLitres(row.extra) : '-'}</td>
                   </tr>

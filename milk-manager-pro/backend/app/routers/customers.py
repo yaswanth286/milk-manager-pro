@@ -237,6 +237,130 @@ def archive_customer(
     return {"detail": "Customer archived. History is preserved."}
 
 
+@router.get("/{customer_id}/record-summary")
+def get_customer_record_summary(
+    customer_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_staff),
+):
+    """
+    Return counts of all financial records linked to a customer.
+    Used by the frontend before offering a permanent-delete option —
+    so the UI can either block deletion or show an accurate warning.
+    """
+    customer = db.query(models.Customer).filter(
+        models.Customer.id == customer_id
+    ).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    delivery_count = (
+        db.query(func.count(models.Delivery.id))
+        .filter(models.Delivery.customer_id == customer_id)
+        .scalar()
+    )
+    payment_count = (
+        db.query(func.count(models.Payment.id))
+        .filter(models.Payment.customer_id == customer_id)
+        .scalar()
+    )
+    bill_count = (
+        db.query(func.count(models.MonthlyBill.id))
+        .filter(models.MonthlyBill.customer_id == customer_id)
+        .scalar()
+    )
+
+    return {
+        "customer_id": customer_id,
+        "customer_name": customer.name,
+        "customer_code": customer.customer_code,
+        "delivery_count": delivery_count,
+        "payment_count": payment_count,
+        "bill_count": bill_count,
+        "can_permanent_delete": (
+            delivery_count == 0 and payment_count == 0 and bill_count == 0
+        ),
+    }
+
+
+@router.delete("/{customer_id}/permanent", status_code=status.HTTP_200_OK)
+def permanent_delete_customer(
+    customer_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_staff),
+):
+    """
+    Hard-delete a customer and their login account.
+
+    Only allowed when the customer has ZERO deliveries, payments, and
+    monthly bills.  This is intentionally strict: it is designed only for
+    test / accidental customers that were created but never used.
+
+    If any financial records exist, the endpoint returns HTTP 409 with a
+    clear explanation instead of deleting anything.
+
+    Owner/staff only.
+    """
+    if current_user.role != models.UserRole.OWNER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the dairy owner can permanently delete a customer.",
+        )
+
+    customer = db.query(models.Customer).filter(
+        models.Customer.id == customer_id
+    ).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    # Safety check — count every linked record before touching anything.
+    delivery_count = (
+        db.query(func.count(models.Delivery.id))
+        .filter(models.Delivery.customer_id == customer_id)
+        .scalar()
+    )
+    payment_count = (
+        db.query(func.count(models.Payment.id))
+        .filter(models.Payment.customer_id == customer_id)
+        .scalar()
+    )
+    bill_count = (
+        db.query(func.count(models.MonthlyBill.id))
+        .filter(models.MonthlyBill.customer_id == customer_id)
+        .scalar()
+    )
+
+    if delivery_count > 0 or payment_count > 0 or bill_count > 0:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Cannot permanently delete {customer.name} — they have existing records: "
+                f"{delivery_count} delivery/deliveries, "
+                f"{payment_count} payment(s), "
+                f"{bill_count} bill(s). "
+                "Use 'Archive Customer' instead to deactivate them while preserving history."
+            ),
+        )
+
+    # Delete the login account first (FK points to customer)
+    login = db.query(models.User).filter(
+        models.User.customer_id == customer_id
+    ).first()
+    if login:
+        db.delete(login)
+        db.flush()
+
+    db.delete(customer)
+    db.commit()
+
+    return {
+        "detail": (
+            f"Customer '{customer.name}' ({customer.customer_code or customer_id}) "
+            "has been permanently deleted."
+        )
+    }
+
+
 @router.get("/{customer_id}/consumption")
 def get_customer_consumption(
     customer_id: int,

@@ -13,5 +13,11 @@ export const updateCustomer = (id, payload) => api.put(`/customers/${id}`, paylo
 
 export const deleteCustomer = (id) => api.delete(`/customers/${id}`);
 
+export const permanentDeleteCustomer = (id) =>
+  api.delete(`/customers/${id}/permanent`).then((res) => res.data);
+
+export const getCustomerRecordSummary = (id) =>
+  api.get(`/customers/${id}/record-summary`).then((res) => res.data);
+
 export const getCustomerConsumption = (id, year, month) =>
   api.get(`/customers/${id}/consumption`, { params: { year, month } }).then((res) => res.data);

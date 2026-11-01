@@ -1,16 +1,15 @@
 import { Link } from 'react-router-dom';
-import { BarChart3, Receipt, Moon, Settings as SettingsIcon, ChevronRight } from 'lucide-react';
+import { Receipt, Moon, Settings as SettingsIcon, ChevronRight } from 'lucide-react';
 import { usePageHeader } from '../../context/PageHeaderContext';
 
 const ITEMS = [
-  { to: '/reports', icon: BarChart3, label: 'Reports', desc: 'Outstanding, revenue, collections' },
-  { to: '/bills', icon: Receipt, label: 'Bills', desc: 'Generate and print monthly bills' },
-  { to: '/delivery/evening', icon: Moon, label: 'Evening Delivery', desc: 'Mark evening deliveries' },
-  { to: '/settings', icon: SettingsIcon, label: 'Settings', desc: 'Account, theme, and app info' },
+  { to: '/bills',            icon: Receipt,      label: 'Monthly Bills',    desc: 'Generate and print monthly bills' },
+  { to: '/delivery/evening', icon: Moon,         label: 'Evening Delivery', desc: 'Mark evening deliveries' },
+  { to: '/settings',         icon: SettingsIcon, label: 'Settings',         desc: 'Account and appearance' },
 ];
 
 export default function More() {
-  usePageHeader('More', 'Everything else, in one place');
+  usePageHeader('More', 'Quick links');
   return (
     <div>
       {ITEMS.map((item) => (
