@@ -15,6 +15,7 @@ const AddCustomer    = lazy(() => import('./pages/AddCustomer/AddCustomer'));
 const MorningDelivery= lazy(() => import('./pages/MorningDelivery/MorningDelivery'));
 const EveningDelivery= lazy(() => import('./pages/EveningDelivery/EveningDelivery'));
 const Bills          = lazy(() => import('./pages/Bills/Bills'));
+const Products       = lazy(() => import('./pages/Products/Products'));
 const Settings       = lazy(() => import('./pages/Settings/Settings'));
 const More           = lazy(() => import('./pages/Settings/More'));
 
@@ -57,6 +58,7 @@ export default function App() {
                     <Route path="/delivery/evening" element={<StaffOnly><EveningDelivery /></StaffOnly>} />
 
                     <Route path="/bills"    element={<StaffOnly><Bills /></StaffOnly>} />
+                    <Route path="/products" element={<StaffOnly><Products /></StaffOnly>} />
                     <Route path="/settings" element={<Settings />} />
                     <Route path="/more"     element={<StaffOnly><More /></StaffOnly>} />
                   </Route>

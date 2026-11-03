@@ -4,22 +4,23 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   Users, Sun as SunIcon, Receipt, Menu, X,
   Search, LogOut, ChevronsLeft, ChevronsRight, Droplets,
-  LayoutDashboard,
+  LayoutDashboard, ShoppingCart,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { usePageHeaderContext } from '../../context/PageHeaderContext';
 import PageTransition from '../ui/PageTransition';
 import ThemeToggle from '../ui/ThemeToggle';
 
-// The 4 sections the owner uses
+// The 5 sections the owner uses
 const NAV_ITEMS = [
-  { to: '/dashboard',       label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/customers',       label: 'Customers', icon: Users },
-  { to: '/delivery/morning',label: 'Delivery',  icon: SunIcon, matchPrefix: '/delivery' },
-  { to: '/bills',           label: 'Bills',     icon: Receipt },
+  { to: '/dashboard',        label: 'Dashboard',      icon: LayoutDashboard },
+  { to: '/customers',        label: 'Customers',      icon: Users },
+  { to: '/delivery/morning', label: 'Delivery',       icon: SunIcon, matchPrefix: '/delivery' },
+  { to: '/bills',            label: 'Bills',          icon: Receipt },
+  { to: '/products',         label: 'Other Products', icon: ShoppingCart },
 ];
 
-// Mobile bottom bar — all 4 fit without a "More" overflow
+// Mobile bottom bar — all 5 items
 const MOBILE_NAV = NAV_ITEMS;
 
 export default function Layout() {

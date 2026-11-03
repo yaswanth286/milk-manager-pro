@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { User, Receipt, Printer, Save, CheckCircle2, Lock, Unlock } from 'lucide-react';
+import { User, Receipt, Printer, Save, CheckCircle2, Lock, Unlock, ShoppingCart } from 'lucide-react';
 import { usePageHeader } from '../../context/PageHeaderContext';
 import { useToast } from '../../context/ToastContext';
 import { listCustomers } from '../../services/customerService';
@@ -11,7 +11,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import { SkeletonCard } from '../../components/ui/Skeleton';
 
 /* ------------------------------------------------------------------ */
-/* Status helpers                                                        */
+/* Helpers                                                               */
 /* ------------------------------------------------------------------ */
 
 function BillStatusBadge({ status }) {
@@ -42,9 +42,7 @@ export default function Bills() {
 
   const years = [now.getFullYear(), now.getFullYear() - 1];
 
-  useEffect(() => {
-    listCustomers('', true).then(setCustomers);
-  }, []);
+  useEffect(() => { listCustomers('', true).then(setCustomers); }, []);
 
   return (
     <div>
@@ -109,7 +107,6 @@ function SingleBill({ customerId, year, month }) {
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState('');
 
-  // Reopen modal state
   const [reopenOpen,   setReopenOpen]   = useState(false);
   const [reopenReason, setReopenReason] = useState('');
   const [reopening,    setReopening]    = useState(false);
@@ -178,8 +175,9 @@ function SingleBill({ customerId, year, month }) {
 
       {bill && !loading && (
         <>
-          {/* Action bar */}
-          <div className="card mb-12 no-print flex-gap" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          {/* ── Action bar ─────────────────────────────────────── */}
+          <div className="card mb-12 no-print flex-gap"
+            style={{ justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span className="text-sm text-muted">Status</span>
               <BillStatusBadge status={bill.status} />
@@ -206,23 +204,23 @@ function SingleBill({ customerId, year, month }) {
             </div>
           </div>
 
-          {/* Finalized immutability notice */}
+          {/* ── Finalized notice ─────────────────────────────── */}
           {isFinalized && (
             <div className="form-info mb-12">
               <Lock size={14} style={{ marginRight: 6, verticalAlign: -2 }} />
-              This bill is finalized and locked. The numbers below are the official snapshot.
-              Only the owner can reopen it.
+              This bill is finalized and locked. Only the owner can reopen it.
             </div>
           )}
 
-          {/* Reopen reason dialog */}
+          {/* ── Reopen dialog ─────────────────────────────────── */}
           {reopenOpen && (
-            <div className="card mb-12" style={{ border: '1.5px solid var(--color-warning)', background: 'var(--color-warning-bg)' }}>
+            <div className="card mb-12"
+              style={{ border: '1.5px solid var(--color-warning)', background: 'var(--color-warning-bg)' }}>
               <div className="section-title" style={{ color: 'var(--color-warning)', marginBottom: 10 }}>
                 Reopen Finalized Bill
               </div>
               <div className="text-sm text-muted mb-12">
-                This will unlock the bill so it can be recalculated. Please provide a reason (required for audit trail).
+                Provide a reason for reopening (saved in the audit trail).
               </div>
               <textarea
                 className="form-control mb-12"
@@ -235,31 +233,45 @@ function SingleBill({ customerId, year, month }) {
                 <button className="btn btn-danger btn-sm" onClick={handleReopen} disabled={reopening}>
                   {reopening ? 'Reopening…' : 'Confirm Reopen'}
                 </button>
-                <button className="btn btn-outline btn-sm" onClick={() => { setReopenOpen(false); setReopenReason(''); }}>
+                <button className="btn btn-outline btn-sm"
+                  onClick={() => { setReopenOpen(false); setReopenReason(''); }}>
                   Cancel
                 </button>
               </div>
             </div>
           )}
 
+          {/* ── Bill card ─────────────────────────────────────── */}
           <div className="card">
             <BillHeader bill={bill} />
 
+            {/* ── Section A: Milk delivery stats ─────────────── */}
+            <div className="section-title">Section A — Milk Deliveries</div>
             <div className="grid-cards mb-12" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
-              <div className="stat-card"><div className="stat-label">Morning</div><div className="stat-value">{formatLitres(bill.morning_total)}</div></div>
-              <div className="stat-card"><div className="stat-label">Evening</div><div className="stat-value">{formatLitres(bill.evening_total)}</div></div>
-              <div className="stat-card accent"><div className="stat-label">Extra</div><div className="stat-value">{formatLitres(bill.extra_total)}</div></div>
-              <div className="stat-card"><div className="stat-label">Total Litres</div><div className="stat-value">{formatLitres(bill.total_litres)}</div></div>
+              <div className="stat-card">
+                <div className="stat-label">Morning</div>
+                <div className="stat-value">{formatLitres(bill.morning_total)}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label">Evening</div>
+                <div className="stat-value">{formatLitres(bill.evening_total)}</div>
+              </div>
+              <div className="stat-card accent">
+                <div className="stat-label">Extra</div>
+                <div className="stat-value">{formatLitres(bill.extra_total)}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label">Total Litres</div>
+                <div className="stat-value">{formatLitres(bill.total_litres)}</div>
+              </div>
             </div>
-
-            <BillTotalsTable bill={bill} />
 
             <div className="text-sm text-muted mb-12">
               Days Delivered: {bill.days_delivered} · Days Not Taken: {bill.days_not_taken}
             </div>
 
             <div className="section-title">Daily Consumption</div>
-            <div className="table-scroll">
+            <div className="table-scroll mb-16">
               <table className="data-table">
                 <thead>
                   <tr><th>Date</th><th>Morning</th><th>Evening</th><th>Total</th></tr>
@@ -275,17 +287,175 @@ function SingleBill({ customerId, year, month }) {
                   {bill.daily_rows.map((r) => (
                     <tr key={r.date}>
                       <td>{formatDateShort(r.date)}</td>
-                      <td>{r.morning ? formatLitres(r.morning) : '-'}</td>
-                      <td>{r.evening ? formatLitres(r.evening) : '-'}</td>
+                      <td>{r.morning ? formatLitres(r.morning) : '—'}</td>
+                      <td>{r.evening ? formatLitres(r.evening) : '—'}</td>
                       <td style={{ fontWeight: 700 }}>{formatLitres(r.total)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+
+            {/* ── Section B: Other product purchases ─────────── */}
+            <ProductPurchasesSection bill={bill} />
+
+            {/* ── Grand total summary ─────────────────────────── */}
+            <BillTotalsTable bill={bill} />
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Section B — Other Product Purchases                                  */
+/* ------------------------------------------------------------------ */
+
+function ProductPurchasesSection({ bill }) {
+  const sales = bill.product_sales || [];
+
+  /* Group by product name for the summary at the bottom */
+  const byProduct = {};
+  sales.forEach((s) => {
+    byProduct[s.product_name] = (byProduct[s.product_name] || 0) + s.total_amount;
+  });
+
+  return (
+    <>
+      <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <ShoppingCart size={15} />
+        Section B — Other Product Purchases
+        {sales.length > 0 && (
+          <span className="badge badge-pending" style={{ marginLeft: 4, fontSize: '0.68rem' }}>
+            {sales.length}
+          </span>
+        )}
+      </div>
+
+      {sales.length === 0 ? (
+        <div className="text-sm text-muted mb-16"
+          style={{ padding: '12px 0', textAlign: 'center', color: 'var(--color-text-faint)' }}>
+          No other product purchases this month.
+        </div>
+      ) : (
+        <>
+          <div className="table-scroll mb-12">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Product</th>
+                  <th style={{ textAlign: 'right' }}>Qty</th>
+                  <th style={{ textAlign: 'right' }}>Rate</th>
+                  <th style={{ textAlign: 'right' }}>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sales.map((s) => (
+                  <tr key={s.id}>
+                    <td>{formatDateShort(s.sale_date)}</td>
+                    <td>
+                      {s.product_name}
+                      {s.remarks && (
+                        <div className="text-sm text-muted">{s.remarks}</div>
+                      )}
+                    </td>
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      {s.quantity} {s.unit}
+                    </td>
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      ₹{s.price_per_unit}/{s.unit}
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                      {formatCurrency(s.total_amount)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Per-product subtotals */}
+          {Object.keys(byProduct).length > 1 && (
+            <div className="text-sm mb-12" style={{ paddingLeft: 4 }}>
+              {Object.entries(byProduct).map(([name, amt]) => (
+                <div key={name} className="flex-between" style={{ marginBottom: 4 }}>
+                  <span className="text-muted">{name}</span>
+                  <span style={{ fontWeight: 600 }}>{formatCurrency(amt)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex-between mb-16"
+            style={{
+              padding: '10px 14px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--color-accent)',
+              opacity: 0.9,
+              color: '#fff',
+            }}>
+            <span style={{ fontWeight: 700 }}>Other Products Total</span>
+            <span style={{ fontWeight: 800, fontSize: '1.05rem' }}>
+              {formatCurrency(bill.product_charges_total)}
+            </span>
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Grand total summary table                                            */
+/* ------------------------------------------------------------------ */
+
+function BillTotalsTable({ bill, compact }) {
+  const hasProducts = (bill.product_charges_total || 0) > 0;
+
+  return (
+    <div className="table-scroll mb-12">
+      <table className="data-table">
+        <tbody>
+          <tr>
+            <td>
+              {compact
+                ? 'Milk Charges'
+                : `Milk Charges (${formatLitres(bill.total_litres)} × ₹${bill.rate_applied}/L)`}
+            </td>
+            <td style={{ textAlign: 'right', fontWeight: 700 }}>
+              {formatCurrency(bill.milk_charges)}
+            </td>
+          </tr>
+          {hasProducts && (
+            <tr>
+              <td>Other Product Purchases</td>
+              <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--color-accent)' }}>
+                {formatCurrency(bill.product_charges_total)}
+              </td>
+            </tr>
+          )}
+          <tr>
+            <td>Opening Balance</td>
+            <td style={{ textAlign: 'right' }}>{formatCurrency(bill.opening_balance)}</td>
+          </tr>
+          <tr>
+            <td>Payments This Month</td>
+            <td style={{ textAlign: 'right', color: 'var(--color-success)' }}>
+              − {formatCurrency(bill.payments_during_month)}
+            </td>
+          </tr>
+          <tr style={{ background: 'var(--color-primary-light)' }}>
+            <td style={{ fontWeight: 800 }}>
+              {hasProducts ? 'Grand Total Payable' : 'Closing Balance'}
+            </td>
+            <td style={{ textAlign: 'right', fontWeight: 800 }}>
+              {formatCurrency(bill.closing_balance)}
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -343,7 +513,8 @@ function AllBills({ year, month }) {
       <div className="card mb-12 no-print flex-between">
         <div className="text-sm text-muted">
           {bills.length} bill{bills.length !== 1 ? 's' : ''} for {MONTH_NAMES[month - 1]} {year}
-          {' · '}<span style={{ color: 'var(--color-success)' }}>{finalizedCount} finalized</span>
+          {' · '}
+          <span style={{ color: 'var(--color-success)' }}>{finalizedCount} finalized</span>
           {pendingCount > 0 && <span>, {pendingCount} pending</span>}
           {savedCount != null && (
             <div className="text-success" style={{ marginTop: 4 }}>
@@ -384,6 +555,7 @@ function AllBills({ year, month }) {
 }
 
 function BillSlip({ bill }) {
+  const hasProducts = (bill.product_charges_total || 0) > 0;
   return (
     <div className="bill-slip">
       <BillHeader bill={bill} compact />
@@ -391,6 +563,11 @@ function BillSlip({ bill }) {
         <span className="shift-tag">M {formatLitres(bill.morning_total)}</span>
         <span className="shift-tag">E {formatLitres(bill.evening_total)}</span>
         {bill.extra_total > 0 && <span className="shift-tag">Extra {formatLitres(bill.extra_total)}</span>}
+        {hasProducts && (
+          <span className="shift-tag" style={{ background: 'var(--color-warning-bg)', color: 'var(--color-warning)' }}>
+            Products {formatCurrency(bill.product_charges_total)}
+          </span>
+        )}
         <BillStatusBadge status={bill.status} />
       </div>
       <BillTotalsTable bill={bill} compact />
@@ -402,7 +579,7 @@ function BillSlip({ bill }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Shared pieces                                                         */
+/* Shared: bill header                                                   */
 /* ------------------------------------------------------------------ */
 
 function BillHeader({ bill, compact }) {
@@ -412,7 +589,7 @@ function BillHeader({ bill, compact }) {
         <div style={{ fontSize: compact ? '1rem' : '1.3rem', fontWeight: 800, color: 'var(--color-primary-dark)' }}>
           🥛 Milk Manager Pro
         </div>
-        {!compact && <div className="text-sm text-muted">Monthly Milk Bill</div>}
+        {!compact && <div className="text-sm text-muted">Monthly Bill</div>}
       </div>
       <div className="flex-between mb-12">
         <div>
@@ -426,46 +603,9 @@ function BillHeader({ bill, compact }) {
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontWeight: 700 }}>{MONTH_NAMES[bill.month - 1]} {bill.year}</div>
-          <div className="text-sm text-muted">Rate: ₹{bill.rate_applied}/L</div>
+          <div className="text-sm text-muted">Milk Rate: ₹{bill.rate_applied}/L</div>
         </div>
       </div>
     </>
-  );
-}
-
-function BillTotalsTable({ bill, compact }) {
-  return (
-    <div className="table-scroll mb-12">
-      <table className="data-table">
-        <tbody>
-          <tr>
-            <td>
-              {compact
-                ? 'Milk Charges'
-                : `Milk Charges (${formatLitres(bill.total_litres)} × ₹${bill.rate_applied})`}
-            </td>
-            <td style={{ textAlign: 'right', fontWeight: 700 }}>
-              {formatCurrency(bill.milk_charges)}
-            </td>
-          </tr>
-          <tr>
-            <td>Opening Balance</td>
-            <td style={{ textAlign: 'right' }}>{formatCurrency(bill.opening_balance)}</td>
-          </tr>
-          <tr>
-            <td>Payments This Month</td>
-            <td style={{ textAlign: 'right', color: 'var(--color-success)' }}>
-              − {formatCurrency(bill.payments_during_month)}
-            </td>
-          </tr>
-          <tr style={{ background: 'var(--color-primary-light)' }}>
-            <td style={{ fontWeight: 800 }}>Closing Balance</td>
-            <td style={{ textAlign: 'right', fontWeight: 800 }}>
-              {formatCurrency(bill.closing_balance)}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
   );
 }

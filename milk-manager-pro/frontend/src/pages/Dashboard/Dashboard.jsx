@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Users, Droplets, Sun, Moon, ReceiptText } from 'lucide-react';
+import { Users, Droplets, Sun, Moon, ReceiptText, ShoppingCart } from 'lucide-react';
 import { usePageHeader } from '../../context/PageHeaderContext';
 import { getDashboard } from '../../services/dashboardService';
-import { formatLitres } from '../../utils/format';
+import { formatLitres, formatCurrency } from '../../utils/format';
 import { SkeletonKpiGrid } from '../../components/ui/Skeleton';
 
 function isoDaysAgo(n) {
@@ -19,9 +19,9 @@ export default function Dashboard() {
   usePageHeader('Dashboard', "Today's milk delivery summary");
   const navigate = useNavigate();
 
-  const [data, setData]     = useState(null);
+  const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError]   = useState('');
+  const [error,   setError]   = useState('');
 
   useEffect(() => {
     getDashboard(isoDaysAgo(0))
@@ -33,44 +33,39 @@ export default function Dashboard() {
   return (
     <div>
       {error && <div className="form-error">{error}</div>}
-
-      {loading && <SkeletonKpiGrid count={4} />}
+      {loading && <SkeletonKpiGrid count={6} />}
 
       {!loading && data && (
         <>
-          {/* ── 4 stat cards ──────────────────────────────────── */}
+          {/* ── Milk delivery stat cards ───────────────────────── */}
+          <div className="kpi-grid mb-12" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+            <StatCard icon={Users}    label="Active Customers"  value={data.active_customers}                     color="var(--color-primary)"  delay={0}    />
+            <StatCard icon={Droplets} label="Total Litres Today" value={formatLitres(data.todays_total_litres)}   color="var(--color-primary)"  delay={0.04} />
+            <StatCard icon={Sun}      label="Morning Litres"     value={formatLitres(data.morning.total_litres)}  color="var(--color-accent)"   delay={0.08} />
+            <StatCard icon={Moon}     label="Evening Litres"     value={formatLitres(data.evening.total_litres)}  color="var(--color-info)"     delay={0.12} />
+          </div>
+
+          {/* ── Other product sales stat cards ─────────────────── */}
           <div className="kpi-grid mb-12" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
             <StatCard
-              icon={Users}
-              label="Active Customers"
-              value={data.active_customers}
-              color="var(--color-primary)"
-              delay={0}
-            />
-            <StatCard
-              icon={Droplets}
-              label="Total Litres Today"
-              value={formatLitres(data.todays_total_litres)}
-              color="var(--color-primary)"
-              delay={0.04}
-            />
-            <StatCard
-              icon={Sun}
-              label="Morning Litres"
-              value={formatLitres(data.morning.total_litres)}
+              icon={ShoppingCart}
+              label="Product Sales Today"
+              value={formatCurrency(data.todays_product_sales ?? 0)}
               color="var(--color-accent)"
-              delay={0.08}
+              delay={0.16}
+              subtitle="Other products"
             />
             <StatCard
-              icon={Moon}
-              label="Evening Litres"
-              value={formatLitres(data.evening.total_litres)}
-              color="var(--color-info)"
-              delay={0.12}
+              icon={ShoppingCart}
+              label="Product Sales This Month"
+              value={formatCurrency(data.this_month_product_sales ?? 0)}
+              color="var(--color-accent)"
+              delay={0.20}
+              subtitle="Other products"
             />
           </div>
 
-          {/* ── Shift summary row ─────────────────────────────── */}
+          {/* ── Today's delivery status ─────────────────────────── */}
           <div className="card mb-12">
             <div className="section-title">Today's Delivery Status</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
@@ -79,16 +74,17 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* ── Quick actions ─────────────────────────────────── */}
+          {/* ── Quick actions ───────────────────────────────────── */}
           <div className="section-title">Quick Actions</div>
-          <div className="quick-actions-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+          <div className="quick-actions-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
             {[
-              { label: 'Morning Delivery', icon: Sun,         to: '/delivery/morning' },
-              { label: 'Evening Delivery', icon: Moon,        to: '/delivery/evening' },
-              { label: 'Monthly Bills',    icon: ReceiptText, to: '/bills'            },
+              { label: 'Morning Delivery', icon: Sun,          to: '/delivery/morning' },
+              { label: 'Evening Delivery', icon: Moon,         to: '/delivery/evening' },
+              { label: 'Monthly Bills',    icon: ReceiptText,  to: '/bills'            },
+              { label: 'Record Sale',      icon: ShoppingCart, to: '/products'         },
             ].map((a, i) => (
               <motion.button
-                key={a.to}
+                key={a.to + a.label}
                 className="quick-action-btn"
                 onClick={() => navigate(a.to)}
                 initial={{ opacity: 0, y: 8 }}
@@ -106,7 +102,7 @@ export default function Dashboard() {
   );
 }
 
-function StatCard({ icon: Icon, label, value, color, delay }) {
+function StatCard({ icon: Icon, label, value, color, delay, subtitle }) {
   return (
     <motion.div
       className="kpi-card"
@@ -117,8 +113,13 @@ function StatCard({ icon: Icon, label, value, color, delay }) {
       <div className="kpi-icon" style={{ color }}>
         <Icon size={19} />
       </div>
+      {subtitle && (
+        <div style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--color-text-faint)', marginBottom: 2 }}>
+          {subtitle}
+        </div>
+      )}
       <div className="kpi-label">{label}</div>
-      <div className="kpi-value">{value}</div>
+      <div className="kpi-value" style={{ fontSize: '1.25rem' }}>{value}</div>
     </motion.div>
   );
 }
@@ -128,9 +129,9 @@ function ShiftSummary({ label, summary }) {
     <div>
       <div className="text-sm" style={{ fontWeight: 700, marginBottom: 8 }}>{label}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <SummaryRow color="var(--color-success)"      label="Delivered"    value={summary.delivered} />
-        <SummaryRow color="var(--color-warning)"      label="Not Taken"    value={summary.not_taken} />
-        <SummaryRow color="var(--color-text-muted)"   label="Pending"      value={summary.pending} />
+        <SummaryRow color="var(--color-success)"    label="Delivered"  value={summary.delivered} />
+        <SummaryRow color="var(--color-warning)"    label="Not Taken"  value={summary.not_taken} />
+        <SummaryRow color="var(--color-text-muted)" label="Pending"    value={summary.pending} />
       </div>
     </div>
   );
